@@ -189,6 +189,12 @@ service cloud.firestore {
       這會無視資料庫內的舊有英文資料，強迫系統去抓取最新繁體中文化資料，並<span class="text-red-400 font-bold">覆蓋寫入</span>到 Firebase 裡面。
     </p>
 
+    <!-- 新增：明確提示資料庫存放路徑 -->
+    <div class="mb-4 p-3 bg-black/50 rounded border border-emerald-500/50 text-xs text-slate-300 font-mono">
+      <p class="text-emerald-400 font-bold mb-1"><i data-lucide="folder-search" class="w-4 h-4 inline"></i> 寫入成功後，請至 Firebase 依序展開以下路徑：</p>
+      <p class="text-[11px] break-all leading-loose">根目錄 ➔ pokedex</p>
+    </div>
+
     <!-- 同步中介面 -->
     <div id="sync-progress-container" class="w-full hidden">
       <div class="flex justify-between text-xs text-yellow-400 mb-1 font-mono">
@@ -229,7 +235,6 @@ service cloud.firestore {
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
-    const appId = typeof __app_id !== 'undefined' ? __app_id : firebaseConfig.projectId;
 
     // 2. 常數與設定
     const MAX_POKEMON_ID = 1025;
@@ -374,14 +379,15 @@ service cloud.firestore {
                         || pkmnData.sprites?.front_default 
                         || "";
 
+      // 確保沒有 undefined 存在，否則 Firebase 會無聲拒絕寫入
       return {
-        id: pkmnData.id,
-        name: parsedName,
-        types: pkmnData.types.map(t => t.type.name),
-        height: pkmnData.height,
-        weight: pkmnData.weight,
-        spriteUrl: parsedSprite,
-        flavorText: parsedFlavor,
+        id: pkmnData.id || targetId,
+        name: parsedName || "未知名稱",
+        types: (pkmnData.types || []).map(t => t.type.name),
+        height: pkmnData.height || 0,
+        weight: pkmnData.weight || 0,
+        spriteUrl: parsedSprite || "",
+        flavorText: parsedFlavor || "暫無介紹",
         updatedAt: new Date().toISOString()
       };
     }
@@ -398,7 +404,7 @@ service cloud.firestore {
       elements.dataSourceLabel.classList.add('hidden');
 
       try {
-        const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pokedex', String(searchId));
+        const docRef = doc(db, 'pokedex', String(searchId));
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
@@ -448,7 +454,7 @@ service cloud.firestore {
       let successCount = 0;
       for (let i = 1; i <= MAX_POKEMON_ID; i++) {
         try {
-          const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pokedex', String(i));
+          const docRef = doc(db, 'pokedex', String(i));
           
           // 不管資料庫存不存在，直接強迫抓取並覆蓋 (Overwrite)
           const cleanData = await fetchAndParseFromPokeAPI(i);
@@ -459,22 +465,22 @@ service cloud.firestore {
           elements.syncPercentage.innerText = `${percent}%`;
           elements.syncBar.style.width = `${percent}%`;
           
-          // 延遲 200ms 防阻擋
-          await new Promise(resolve => setTimeout(resolve, 200)); 
+          // 延遲 150ms 防止被 API 防火牆阻擋
+          await new Promise(resolve => setTimeout(resolve, 150)); 
         } catch (err) {
-          console.warn(`Failed to sync ID ${i}:`, err);
-          if (err.code === 'permission-denied' || (err.message && err.message.includes('permissions'))) {
-             alert("權限不足！請至 Firebase Console 修改 Firestore 規則以允許讀寫。同步已中止。");
-             break;
-          }
+          console.error(`Failed to sync ID ${i}:`, err);
+          // 只要發生錯誤就立刻中斷並彈窗通知，避免產生「假進度條」
+          alert(`同步在 ID ${i} 時發生錯誤並中斷！\n\n錯誤原因：${err.message}\n\n可能原因：Firestore Database 未完全建立、規則權限不足，或網路被 PokeAPI 阻擋。`);
+          break;
         }
       }
       
       isSyncing = false;
       elements.syncBtn.classList.remove('hidden');
       elements.syncContainer.classList.add('hidden');
+      
       if (successCount > 0) {
-        alert("✅ 強制覆蓋寫入完成！您的 Firebase 已經全部更新為最新的中文化對應資料。");
+        alert(`✅ 強制覆蓋寫入結束！成功寫入 ${successCount} 筆。\n\n請至 Firebase Console 檢查根目錄的【pokedex】集合。`);
       }
     });
 
