@@ -308,6 +308,38 @@ service cloud.firestore {
       'default': '預設說明'
     };
 
+    // 新增：完整型態名稱與後綴對照表
+    const FORM_SUFFIXES = [
+      { key: '-alola-cap', val: ' (阿羅拉帽子)' },
+      { key: '-original-cap', val: ' (初始帽子)' },
+      { key: '-hoenn-cap', val: ' (豐緣帽子)' },
+      { key: '-sinnoh-cap', val: ' (神奧帽子)' },
+      { key: '-unova-cap', val: ' (合眾帽子)' },
+      { key: '-kalos-cap', val: ' (卡洛斯帽子)' },
+      { key: '-partner-cap', val: ' (搭檔帽子)' },
+      { key: '-world-cap', val: ' (世界帽子)' },
+      { key: '-alola', val: ' (阿羅拉)' },
+      { key: '-galar', val: ' (伽勒爾)' },
+      { key: '-hisui', val: ' (洗翠)' },
+      { key: '-paldea', val: ' (帕底亞)' },
+      { key: '-mega-x', val: ' (超級 X)' },
+      { key: '-mega-y', val: ' (超級 Y)' },
+      { key: '-mega', val: ' (超級)' },
+      { key: '-gmax', val: ' (超極巨化)' },
+      { key: '-cosplay', val: ' (換裝)' },
+      { key: '-rock-star', val: ' (搖滾)' },
+      { key: '-belle', val: ' (貴婦)' },
+      { key: '-pop-star', val: ' (偶像)' },
+      { key: '-phd', val: ' (博士)' },
+      { key: '-libre', val: ' (面罩摔角手)' },
+      { key: '-starter', val: ' (搭檔)' },
+      { key: '-primal', val: ' (原始)' },
+      { key: '-battle-bond', val: ' (牽絆變身)' },
+      { key: '-10-percent', val: ' (10%型態)' },
+      { key: '-complete', val: ' (完全體)' },
+      { key: '-bloodmoon', val: ' (赫月)' }
+    ];
+
     // 用於過濾地區型態登場版本的世代對照表
     const GAME_GENERATIONS = {
       'red': 1, 'blue': 1, 'yellow': 1,
@@ -400,12 +432,28 @@ service cloud.firestore {
     function filterGamesByForm(gamesArr, apiName) {
       let minGen = 1;
       const lowerName = apiName.toLowerCase();
-      if (lowerName.includes('-alola') || lowerName.includes('阿羅拉')) minGen = 7;
-      else if (lowerName.includes('-galar') || lowerName.includes('伽勒爾')) minGen = 8;
-      else if (lowerName.includes('-hisui') || lowerName.includes('洗翠')) minGen = 8;
-      else if (lowerName.includes('-paldea') || lowerName.includes('帕底亞')) minGen = 9;
-      else if (lowerName.includes('-mega') || lowerName.includes('超級')) minGen = 6;
-      else if (lowerName.includes('-gmax') || lowerName.includes('超極巨化')) minGen = 8;
+      
+      if (lowerName.includes('-alola')) minGen = 7;
+      else if (lowerName.includes('-galar')) minGen = 8;
+      else if (lowerName.includes('-hisui')) minGen = 8;
+      else if (lowerName.includes('-paldea')) minGen = 9;
+      else if (lowerName.includes('-mega')) minGen = 6;
+      else if (lowerName.includes('-gmax') || lowerName.includes('eternamax')) minGen = 8;
+      else if (lowerName.includes('-world-cap')) minGen = 8;
+      else if (lowerName.includes('-cap')) minGen = 7;
+      else if (lowerName.includes('-starter')) minGen = 7;
+      else if (lowerName.includes('-primal')) minGen = 6;
+      else if (lowerName.includes('battle-bond')) minGen = 7;
+      else if (lowerName.includes('zygarde-10') || lowerName.includes('zygarde-complete')) minGen = 7;
+      else if (lowerName.includes('bloodmoon')) minGen = 9;
+      else if (
+        lowerName.includes('-cosplay') || 
+        lowerName.includes('-rock-star') || 
+        lowerName.includes('-belle') || 
+        lowerName.includes('-pop-star') || 
+        lowerName.includes('-phd') || 
+        lowerName.includes('-libre')
+      ) minGen = 6;
 
       return gamesArr.filter(g => {
           const gen = GAME_GENERATIONS[g] || 1;
@@ -543,20 +591,15 @@ service cloud.firestore {
          throw new Error("無法從官方取得繁體中文譯名，已拒絕寫入資料庫！");
       }
 
-      const formSuffixes = {
-        '-alola': ' (阿羅拉)',
-        '-galar': ' (伽勒爾)',
-        '-hisui': ' (洗翠)',
-        '-paldea': ' (帕底亞)',
-        '-mega': ' (超級)',
-        '-gmax': ' (超極巨化)'
-      };
-      for (const [key, val] of Object.entries(formSuffixes)) {
-         if (pkmnData.name.includes(key)) {
-            parsedName += val;
+      // 套用完整型態名稱後綴
+      let finalName = parsedName;
+      for (const suffix of FORM_SUFFIXES) {
+         if (pkmnData.name.includes(suffix.key)) {
+            finalName += suffix.val;
             break;
          }
       }
+      parsedName = finalName;
 
       const varieties = speciesData.varieties.map(v => {
          const parts = v.pokemon.url.split('/').filter(Boolean);
@@ -837,6 +880,16 @@ service cloud.firestore {
             skippedCount++;
             continue;
           }
+
+          // 套用完整型態名稱後綴
+          let finalName = parsedName;
+          for (const suffix of FORM_SUFFIXES) {
+             if (p.name.includes(suffix.key)) {
+                finalName += suffix.val;
+                break;
+             }
+          }
+          parsedName = finalName;
 
           // 手動補丁：皮卡丘
           let finalGamesArr = Array.from(seenGames);
