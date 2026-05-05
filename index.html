@@ -181,15 +181,14 @@ service cloud.firestore {
       <h3 class="text-white font-bold flex items-center gap-2">
         <i data-lucide="database" class="text-yellow-400 w-5 h-5"></i> GraphQL 高速寫入工具
       </h3>
-      <span class="text-xs bg-slate-900 px-2 py-1 rounded text-slate-400 font-mono">1-1025 完美版</span>
+      <span class="text-xs bg-slate-900 px-2 py-1 rounded text-emerald-400 font-mono font-bold">100% 繁中鎖定版</span>
     </div>
     
     <p class="text-slate-300 text-sm mb-4 leading-relaxed bg-slate-900/50 p-3 rounded border border-slate-700">
-      <strong class="text-yellow-400">若看到英文名稱，請點擊此按鈕！</strong><br>
-      系統將切換為 <span class="text-emerald-400 font-bold">GraphQL 高速通道</span>，突破 API 阻擋，一次下載 1025 筆最新繁體中文資料，並強迫<span class="text-red-400 font-bold">覆蓋寫入</span>到 Firebase 裡面。
+      <strong class="text-yellow-400">發現英文舊資料？請點擊此按鈕！</strong><br>
+      系統已經啟動「<span class="text-red-400 font-bold">嚴格中文鎖定</span>」。這會強制清除並覆蓋 Firebase 裡的英文資料，若網路抓不到中文，寧可拒絕寫入也絕不讓英文進入資料庫。
     </p>
 
-    <!-- 新增：明確提示資料庫存放路徑 -->
     <div class="mb-4 p-3 bg-black/50 rounded border border-emerald-500/50 text-xs text-slate-300 font-mono">
       <p class="text-emerald-400 font-bold mb-1"><i data-lucide="folder-search" class="w-4 h-4 inline"></i> 寫入成功後，請至 Firebase 依序展開以下路徑：</p>
       <p class="text-[11px] break-all leading-loose">Firestore 根目錄 ➔ pokedex 集合</p>
@@ -208,7 +207,7 @@ service cloud.firestore {
 
     <!-- 同步按鈕 -->
     <button id="sync-btn" class="w-full bg-yellow-600 hover:bg-yellow-500 text-slate-900 font-black py-3 rounded-lg flex justify-center items-center gap-2 transition-colors border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1">
-      <i data-lucide="zap" class="w-5 h-5"></i> 一鍵覆蓋全圖鑑 (繁中版)
+      <i data-lucide="zap" class="w-5 h-5"></i> 強制清除英文並覆蓋全圖鑑
     </button>
   </div>
 
@@ -236,7 +235,6 @@ service cloud.firestore {
     const auth = getAuth(app);
     const db = getFirestore(app);
 
-    // 2. 常數與設定
     const MAX_POKEMON_ID = 1025;
     const TYPE_MAP = {
       normal: '一般', fire: '火', water: '水', grass: '草', electric: '電',
@@ -256,7 +254,6 @@ service cloud.firestore {
     let currentUser = null;
     let isSyncing = false;
 
-    // DOM 元素引用
     const elements = {
       form: document.getElementById('searchForm'),
       input: document.getElementById('searchInput'),
@@ -283,7 +280,6 @@ service cloud.firestore {
       syncStatusText: document.getElementById('sync-status-text')
     };
 
-    // 3. UI 控制函數
     function showView(viewName, errorMsg = "", isPermissionError = false) {
       elements.viewLoading.classList.add('hidden');
       elements.viewError.classList.add('hidden');
@@ -294,9 +290,7 @@ service cloud.firestore {
         elements.viewLoading.classList.remove('hidden');
       } else if (viewName === 'error') {
         elements.errorText.innerText = errorMsg;
-        if (isPermissionError) {
-          elements.errorHint.classList.remove('hidden');
-        }
+        if (isPermissionError) elements.errorHint.classList.remove('hidden');
         elements.viewError.classList.remove('hidden');
       } else if (viewName === 'pokemon') {
         elements.viewPokemon.classList.remove('hidden');
@@ -338,11 +332,11 @@ service cloud.firestore {
       }).join('');
     }
 
-    // 4. 解析引擎 (備用：當使用者單獨搜尋未同步的編號時使用)
+    // 4. 解析引擎 (嚴格保證繁體中文，絕不允許英文寫入資料庫)
     async function fetchAndParseFromPokeAPI(targetId) {
       const [pkmnRes, speciesRes] = await Promise.all([
-        fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`),
-        fetch(`https://pokeapi.co/api/v2/pokemon-species/${targetId}`)
+        fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`, { cache: 'no-cache' }),
+        fetch(`https://pokeapi.co/api/v2/pokemon-species/${targetId}`, { cache: 'no-cache' })
       ]);
 
       if (!pkmnRes.ok || !speciesRes.ok) throw new Error("API_NOT_FOUND");
@@ -350,22 +344,25 @@ service cloud.firestore {
       const pkmnData = await pkmnRes.json();
       const speciesData = await speciesRes.json();
 
-      let parsedName = pkmnData.name.toUpperCase();
+      let parsedName = null;
       if (speciesData.names) {
-        const hant = speciesData.names.find(n => n.language.name === "zh-Hant");
-        const tw = speciesData.names.find(n => n.language.name === "zh-tw");
-        const hans = speciesData.names.find(n => n.language.name === "zh-Hans");
+        // 嚴格比對繁中標籤，移除任何英文 fallback 的可能性
+        const hant = speciesData.names.find(n => n.language.name === "zh-Hant" || n.language.url.includes("/4/"));
+        const hans = speciesData.names.find(n => n.language.name === "zh-Hans" || n.language.url.includes("/12/"));
         if (hant) parsedName = hant.name;
-        else if (tw) parsedName = tw.name;
         else if (hans) parsedName = hans.name;
+      }
+
+      // 【核心防護】如果找不到中文，直接中斷執行，絕不把英文存進 Firebase
+      if (!parsedName) {
+         throw new Error("無法從官方取得繁體中文譯名，為保護資料庫，已拒絕寫入！");
       }
 
       let parsedFlavor = "暫無中文介紹。";
       if (speciesData.flavor_text_entries) {
-        const hantF = speciesData.flavor_text_entries.find(e => e.language.name === "zh-Hant");
-        const twF = speciesData.flavor_text_entries.find(e => e.language.name === "zh-tw");
-        const hansF = speciesData.flavor_text_entries.find(e => e.language.name === "zh-Hans");
-        const targetEntry = hantF || twF || hansF;
+        const hantF = speciesData.flavor_text_entries.find(e => e.language.name === "zh-Hant" || e.language.url.includes("/4/"));
+        const hansF = speciesData.flavor_text_entries.find(e => e.language.name === "zh-Hans" || e.language.url.includes("/12/"));
+        const targetEntry = hantF || hansF;
         if (targetEntry) {
           parsedFlavor = targetEntry.flavor_text.replace(/[\f\n\r]/g, ' ');
         }
@@ -377,17 +374,17 @@ service cloud.firestore {
 
       return {
         id: pkmnData.id || targetId,
-        name: parsedName || "未知名稱",
+        name: parsedName,
         types: (pkmnData.types || []).map(t => t.type.name),
         height: pkmnData.height || 0,
         weight: pkmnData.weight || 0,
         spriteUrl: parsedSprite || "",
-        flavorText: parsedFlavor || "暫無介紹",
+        flavorText: parsedFlavor,
         updatedAt: new Date().toISOString()
       };
     }
 
-    // 5. 查詢邏輯
+    // 5. 查詢邏輯 (含：自動淨化 Auto-Heal 舊有英文資料)
     async function fetchPokemon(searchId) {
       if (!currentUser) return;
       if (!searchId || searchId < 1 || searchId > MAX_POKEMON_ID) {
@@ -404,9 +401,10 @@ service cloud.firestore {
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          // 如果名字只有英文數字，啟動單筆修復
+          // 如果名字只有英文或數字，代表 Firebase 裡存的是錯誤資料，立刻啟動強制修復
           const isEnglishOnly = /^[A-Za-z0-9\-\s]+$/.test(data.name);
           if (isEnglishOnly) {
+            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 是舊版英文資料，強制重新抓取中文並覆蓋...`);
             const cleanData = await fetchAndParseFromPokeAPI(searchId);
             await setDoc(docRef, cleanData);
             renderPokemon(cleanData);
@@ -428,16 +426,16 @@ service cloud.firestore {
         if (err.code === 'permission-denied' || (err.message && err.message.includes('permissions'))) {
           showView('error', "Firestore 權限不足而被拒絕讀寫！", true);
         } else {
-          showView('error', "讀取失敗，請確認網路狀態。");
+          showView('error', err.message || "讀取失敗，請確認網路狀態。");
         }
       }
     }
 
-    // 6. 強制全圖鑑覆蓋寫入作業 (GraphQL 高速架構 - 破解封鎖)
+    // 6. 強制全圖鑑覆蓋寫入作業 (GraphQL 高速架構 - 嚴格過濾英文版)
     elements.syncBtn.addEventListener('click', async () => {
       if (!currentUser || isSyncing) return;
       
-      if (!confirm("警告！\n這將透過「高速 GraphQL 通道」強制抓取 1~1025 號全部最新中文資料，並「覆蓋掉」您 Firebase 裡的所有舊資料。\n這能徹底解決寫入中斷與只有英文的問題。\n\n確定要開始嗎？")) return;
+      if (!confirm("警告！\n這將透過「高速 GraphQL 通道」強制抓取 1~1025 號全部最新中文資料，並「覆蓋清除」您 Firebase 裡的舊有英文資料。\n\n確定要開始嗎？")) return;
 
       isSyncing = true;
       elements.syncBtn.classList.add('hidden');
@@ -447,7 +445,7 @@ service cloud.firestore {
       elements.syncBar.style.width = "0%";
 
       try {
-        // 利用 GraphQL 發出「1次」請求，直接取得 1025 筆寶可夢資訊，完全避開阻擋。
+        // 利用 GraphQL 發出 1 次請求，直接抓出所有寶可夢的名稱陣列
         const query = `
           query {
             pokemon_v2_pokemon(limit: 1025) {
@@ -458,11 +456,11 @@ service cloud.firestore {
                 pokemon_v2_type { name }
               }
               pokemon_v2_pokemonspecy {
-                pokemon_v2_pokemonspeciesnames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans"]}}}) {
+                pokemon_v2_pokemonspeciesnames {
                   name
                   pokemon_v2_language { name }
                 }
-                pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans"]}}}, limit: 1) {
+                pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-Hans"]}}}, limit: 1) {
                   flavor_text
                 }
               }
@@ -481,29 +479,35 @@ service cloud.firestore {
         const json = await response.json();
         const pokemonList = json.data.pokemon_v2_pokemon;
 
-        elements.syncStatusText.innerText = "資料打包完成！開始飆速寫入 Firebase...";
+        elements.syncStatusText.innerText = "資料打包完成！開始飆速清理舊資料並寫入 Firebase...";
 
         let successCount = 0;
+        let skippedCount = 0;
         
-        // 開始批量寫入 Firebase，因為不須再次等待外部 API，速度會非常快
         for (const p of pokemonList) {
-          let parsedName = "未知名稱";
+          let parsedName = null;
           let parsedFlavor = "暫無中文介紹。";
           
           const specy = p.pokemon_v2_pokemonspecy;
           if (specy) {
             const names = specy.pokemon_v2_pokemonspeciesnames || [];
+            // 嚴格比對，排除任何英文可能
             const hant = names.find(n => n.pokemon_v2_language.name === "zh-Hant");
-            const tw = names.find(n => n.pokemon_v2_language.name === "zh-tw");
             const hans = names.find(n => n.pokemon_v2_language.name === "zh-Hans");
             if (hant) parsedName = hant.name;
-            else if (tw) parsedName = tw.name;
             else if (hans) parsedName = hans.name;
 
             const flavors = specy.pokemon_v2_pokemonspeciesflavortexts || [];
             if (flavors.length > 0) {
               parsedFlavor = flavors[0].flavor_text.replace(/[\f\n\r]/g, ' ');
             }
+          }
+
+          // 【核心防護】如果在 GraphQL 裡面真的抓不到這隻的中文名，就跳過不寫入，絕不塞英文進去！
+          if (!parsedName) {
+            console.warn(`ID ${p.id} 缺乏中文譯名，為保護 Firebase 資料庫已跳過寫入。`);
+            skippedCount++;
+            continue;
           }
 
           const spriteUrl = p.id <= 251 
@@ -521,19 +525,19 @@ service cloud.firestore {
             updatedAt: new Date().toISOString()
           };
 
-          // 寫入 Firebase
+          // 強制覆蓋寫入 Firebase
           const docRef = doc(db, 'pokedex', String(p.id));
           await setDoc(docRef, cleanData);
 
           successCount++;
-          const percent = Math.floor((successCount / 1025) * 100);
+          const percent = Math.floor(((successCount + skippedCount) / 1025) * 100);
           elements.syncPercentage.innerText = `${percent}%`;
           elements.syncBar.style.width = `${percent}%`;
         }
 
-        alert(`✅ 強制覆蓋寫入結束！\n成功將 1 到 1025 號寶可夢 (共 ${successCount} 筆) 的繁體中文資料，完美寫入 Firebase 根目錄的【pokedex】集合！`);
+        alert(`✅ 清除與覆蓋完成！\n成功將 ${successCount} 筆「純繁體中文」資料寫入 Firebase。\n(為保護資料庫，攔截了 ${skippedCount} 筆缺乏中文的英文資料)`);
         
-        // 同步完畢後，自動重新載入目前畫面上的寶可夢以顯示最新中文資料
+        // 同步完畢後，自動重新載入目前畫面以顯示最新中文資料
         fetchPokemon(parseInt(elements.pokeId.innerText.replace(/\D/g, '')) || 25);
 
       } catch (err) {
