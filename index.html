@@ -308,7 +308,7 @@ service cloud.firestore {
       'default': '預設說明'
     };
 
-    // 新增：完整型態名稱與後綴對照表
+    // 新增：完整型態名稱與後綴對照表 (統一管理)
     const FORM_SUFFIXES = [
       { key: '-alola-cap', val: ' (阿羅拉帽子)' },
       { key: '-original-cap', val: ' (初始帽子)' },
@@ -318,10 +318,10 @@ service cloud.firestore {
       { key: '-kalos-cap', val: ' (卡洛斯帽子)' },
       { key: '-partner-cap', val: ' (搭檔帽子)' },
       { key: '-world-cap', val: ' (世界帽子)' },
-      { key: '-alola', val: ' (阿羅拉)' },
-      { key: '-galar', val: ' (伽勒爾)' },
-      { key: '-hisui', val: ' (洗翠)' },
-      { key: '-paldea', val: ' (帕底亞)' },
+      { key: '-alola', val: ' (阿羅拉型態)' },
+      { key: '-galar', val: ' (伽勒爾型態)' },
+      { key: '-hisui', val: ' (洗翠型態)' },
+      { key: '-paldea', val: ' (帕底亞型態)' },
       { key: '-mega-x', val: ' (超級 X)' },
       { key: '-mega-y', val: ' (超級 Y)' },
       { key: '-mega', val: ' (超級)' },
@@ -744,13 +744,13 @@ service cloud.firestore {
       isSyncing = true;
       elements.syncBtn.classList.add('hidden');
       elements.syncContainer.classList.remove('hidden');
-      elements.syncStatusText.innerText = "向官方伺服器請求最新跨世代資料...";
+      elements.syncStatusText.innerText = "向官方伺服器請求最新跨世代資料 (約 3-5 秒)...";
       elements.syncPercentage.innerText = "0%";
       elements.syncBar.style.width = "0%";
 
       try {
         let pokemonList = [];
-        // 【核心升級】：分批次抓取 (每次 200 筆)，避免 GraphQL 伺服器因查詢過於龐大而超時或拒絕連線
+        // 分批次抓取 (每次 200 筆)，並在 Query 中新增 name 欄位供型態判斷
         for (let offset = 0; offset <= 1025; offset += 200) {
           elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 200, 1025)} 筆)...`;
           const query = `
@@ -796,7 +796,6 @@ service cloud.firestore {
           
           pokemonList = pokemonList.concat(json.data.pokemon_v2_pokemon);
           
-          // 稍微延遲以符合 API 速率限制
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
@@ -855,7 +854,6 @@ service cloud.firestore {
             finalGamesArr = filterGamesByForm(finalGamesArr, parsedName || p.name);
             finalGamesArr = [...new Set(finalGamesArr)];
 
-            // 【核心修正】：過濾掉不屬於此型態世代的說明版本，並加入可選串連防護 (?.)
             targetFlavors = targetFlavors.filter(f => finalGamesArr.includes(f.pokemon_v2_version?.name));
 
             targetFlavors.forEach(f => {
@@ -933,7 +931,7 @@ service cloud.firestore {
           elements.syncBar.style.width = `${percent}%`;
         }
 
-        alert(`✅ 資料淨化升級完成！\n所有「登場版本」標籤皆已補齊，成功同步 ${successCount} 筆最新資料！`);
+        alert(`✅ 資料淨化升級完成！\n成功同步 ${successCount} 筆最新資料！`);
         
         fetchPokemon(currentPokemonId);
 
