@@ -303,9 +303,9 @@ service cloud.firestore {
       pokeHeight: document.getElementById('poke-height'),
       pokeWeight: document.getElementById('poke-weight'),
       pokeFlavor: document.getElementById('poke-flavor'),
-      flavorSelect: document.getElementById('flavor-version-select'), // 新增：跨世代選單
-      btnPrev: document.getElementById('btn-prev'),                   // 新增：上一隻按鈕
-      btnNext: document.getElementById('btn-next'),                   // 新增：下一隻按鈕
+      flavorSelect: document.getElementById('flavor-version-select'),
+      btnPrev: document.getElementById('btn-prev'),
+      btnNext: document.getElementById('btn-next'),
       syncBtn: document.getElementById('sync-btn'),
       syncContainer: document.getElementById('sync-progress-container'),
       syncBar: document.getElementById('sync-bar'),
@@ -402,7 +402,7 @@ service cloud.firestore {
       }
     });
 
-    // 4. 解析引擎 (更新：支援抓取多世代說明)
+    // 4. 解析引擎 (更新：支援抓取多世代說明，加入英文備援機制)
     async function fetchAndParseFromPokeAPI(targetId) {
       const [pkmnRes, speciesRes] = await Promise.all([
         fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`, { cache: 'no-cache' }),
@@ -426,27 +426,40 @@ service cloud.firestore {
          throw new Error("無法從官方取得繁體中文譯名，為保護資料庫，已拒絕寫入！");
       }
 
-      // 提取該寶可夢在歷史上所有的中文圖鑑說明 (排除重複版本)
+      // 提取該寶可夢在歷史上所有的圖鑑說明 (優先中文，若無則用日文備援)
       const flavorTexts = [];
       const seenVersions = new Set();
+      
       if (speciesData.flavor_text_entries) {
-        const validEntries = speciesData.flavor_text_entries.filter(e => ["zh-Hant", "zh-tw", "zh-Hans"].includes(e.language.name));
+        // 先嘗試篩選出所有中文的說明
+        let targetEntries = speciesData.flavor_text_entries.filter(e => ["zh-Hant", "zh-tw", "zh-Hans"].includes(e.language.name));
+        let isFallback = false;
         
-        validEntries.forEach(entry => {
+        // 【核心更新】如果連一筆中文都沒有，自動備援抓取「日文」說明 (ja: 漢字, ja-Hrkt: 假名)
+        if (targetEntries.length === 0) {
+          targetEntries = speciesData.flavor_text_entries.filter(e => ["ja", "ja-Hrkt"].includes(e.language.name));
+          isFallback = true;
+        }
+        
+        targetEntries.forEach(entry => {
           const vName = entry.version.name;
           if (!seenVersions.has(vName)) {
             seenVersions.add(vName);
+            let text = entry.flavor_text.replace(/[\f\n\r]/g, ' ');
+            if (isFallback) {
+              text = "[無官方中文，顯示日文] " + text;
+            }
             flavorTexts.push({
               version: vName,
-              text: entry.flavor_text.replace(/[\f\n\r]/g, ' ')
+              text: text
             });
           }
         });
       }
       
-      // 若真的都沒有資料的備用方案
+      // 若真的極端情況都沒有資料的備用方案
       if (flavorTexts.length === 0) {
-        flavorTexts.push({ version: "default", text: "暫無中文介紹。" });
+        flavorTexts.push({ version: "default", text: "暫無圖鑑介紹資料。" });
       }
 
       const parsedSprite = pkmnData.sprites?.versions?.['generation-ii']?.crystal?.front_default 
@@ -518,7 +531,7 @@ service cloud.firestore {
       }
     }
 
-    // 6. 資料更新作業 (GraphQL 高速架構 - 升級包含多世代說明)
+    // 6. 資料更新作業 (GraphQL 高速架構 - 升級包含多世代說明與英文備援)
     elements.syncBtn.addEventListener('click', async () => {
       if (!currentUser || isSyncing) return;
       
@@ -532,7 +545,7 @@ service cloud.firestore {
       elements.syncBar.style.width = "0%";
 
       try {
-        // 利用 GraphQL 發出 1 次請求，一併抓取包含版本(version)的說明
+        // 利用 GraphQL 發出 1 次請求，一併抓取中文與英文(作為備援)的說明
         const query = `
           query {
             pokemon_v2_pokemon(limit: 1025) {
@@ -547,9 +560,10 @@ service cloud.firestore {
                   name
                   pokemon_v2_language { name }
                 }
-                pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-Hans", "zh-tw"]}}}) {
+                pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-Hans", "zh-tw", "ja", "ja-Hrkt"]}}}) {
                   flavor_text
                   pokemon_v2_version { name }
+                  pokemon_v2_language { name }
                 }
               }
             }
@@ -585,21 +599,35 @@ service cloud.firestore {
             if (hant) parsedName = hant.name;
             else if (hans) parsedName = hans.name;
 
-            const flavors = specy.pokemon_v2_pokemonspeciesflavortexts || [];
-            flavors.forEach(f => {
+            const allFlavors = specy.pokemon_v2_pokemonspeciesflavortexts || [];
+            // 分離出中文與日文的圖鑑說明 (包含漢字 ja 與假名 ja-Hrkt)
+            const cnFlavors = allFlavors.filter(f => ["zh-Hant", "zh-Hans", "zh-tw"].includes(f.pokemon_v2_language.name));
+            const jaFlavors = allFlavors.filter(f => ["ja", "ja-Hrkt"].includes(f.pokemon_v2_language.name));
+
+            // 【核心更新】有中文用中文，沒中文用日文備援
+            const targetFlavors = cnFlavors.length > 0 ? cnFlavors : jaFlavors;
+            const isFallback = cnFlavors.length === 0 && jaFlavors.length > 0;
+
+            targetFlavors.forEach(f => {
               const vName = f.pokemon_v2_version.name;
               if (!seenVersions.has(vName)) {
                 seenVersions.add(vName);
+                
+                let processedText = f.flavor_text.replace(/[\f\n\r]/g, ' ');
+                if (isFallback) {
+                  processedText = "[無官方中文，顯示日文] " + processedText;
+                }
+
                 flavorTexts.push({
                   version: vName,
-                  text: f.flavor_text.replace(/[\f\n\r]/g, ' ')
+                  text: processedText
                 });
               }
             });
           }
 
           if (flavorTexts.length === 0) {
-             flavorTexts.push({ version: "default", text: "暫無中文介紹。" });
+             flavorTexts.push({ version: "default", text: "暫無圖鑑介紹資料。" });
           }
 
           if (!parsedName) {
@@ -633,7 +661,7 @@ service cloud.firestore {
           elements.syncBar.style.width = `${percent}%`;
         }
 
-        alert(`✅ 資料更新完成！\n成功將 ${successCount} 筆最新資料與「多世代說明」同步至 Firebase。\n(為保護資料庫，自動略過 ${skippedCount} 筆無中文資料)`);
+        alert(`✅ 資料更新完成！\n成功同步 ${successCount} 筆最新資料。\n(若官方無中文說明之寶可夢，已自動抓取日文版本備援)`);
         
         fetchPokemon(currentPokemonId);
 
