@@ -701,51 +701,61 @@ service cloud.firestore {
       isSyncing = true;
       elements.syncBtn.classList.add('hidden');
       elements.syncContainer.classList.remove('hidden');
-      elements.syncStatusText.innerText = "向官方伺服器請求最新跨世代資料 (約 3-5 秒)...";
+      elements.syncStatusText.innerText = "向官方伺服器請求最新跨世代資料...";
       elements.syncPercentage.innerText = "0%";
       elements.syncBar.style.width = "0%";
 
       try {
-        const query = `
-          query {
-            pokemon_v2_pokemon(limit: 1025) {
-              id
-              name
-              height
-              weight
-              pokemon_v2_pokemongameindices {
-                pokemon_v2_version { name }
-              }
-              pokemon_v2_pokemontypes {
-                pokemon_v2_type { name }
-              }
-              pokemon_v2_pokemonspecy {
+        let pokemonList = [];
+        // 【核心升級】：分批次抓取 (每次 200 筆)，避免 GraphQL 伺服器因查詢過於龐大而超時或拒絕連線
+        for (let offset = 0; offset <= 1025; offset += 200) {
+          elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 200, 1025)} 筆)...`;
+          const query = `
+            query {
+              pokemon_v2_pokemon(limit: 200, offset: ${offset}) {
                 id
-                pokemon_v2_pokemons { id }
-                pokemon_v2_pokemonspeciesnames {
-                  name
-                  pokemon_v2_language { name }
-                }
-                pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-hant", "zh-Hans", "zh-hans", "zh-tw", "ja", "ja-Hrkt", "en"]}}}) {
-                  flavor_text
+                name
+                height
+                weight
+                pokemon_v2_pokemongameindices {
                   pokemon_v2_version { name }
-                  pokemon_v2_language { name }
+                }
+                pokemon_v2_pokemontypes {
+                  pokemon_v2_type { name }
+                }
+                pokemon_v2_pokemonspecy {
+                  id
+                  pokemon_v2_pokemons { id }
+                  pokemon_v2_pokemonspeciesnames {
+                    name
+                    pokemon_v2_language { name }
+                  }
+                  pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-hant", "zh-Hans", "zh-hans", "zh-tw", "ja", "ja-Hrkt", "en"]}}}) {
+                    flavor_text
+                    pokemon_v2_version { name }
+                    pokemon_v2_language { name }
+                  }
                 }
               }
             }
-          }
-        `;
+          `;
 
-        const response = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
-        });
+          const response = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query })
+          });
 
-        if (!response.ok) throw new Error("GraphQL 伺服器拒絕連線");
-        
-        const json = await response.json();
-        const pokemonList = json.data.pokemon_v2_pokemon;
+          if (!response.ok) throw new Error(`GraphQL 伺服器拒絕連線 (狀態碼: ${response.status})`);
+          
+          const json = await response.json();
+          if (json.errors) throw new Error("GraphQL 查詢錯誤: " + json.errors[0].message);
+          
+          pokemonList = pokemonList.concat(json.data.pokemon_v2_pokemon);
+          
+          // 稍微延遲以符合 API 速率限制
+          await new Promise(resolve => setTimeout(resolve, 300));
+        }
 
         elements.syncStatusText.innerText = "資料請求完成！開始淨化 Firebase 資料庫...";
 
@@ -759,7 +769,7 @@ service cloud.firestore {
           const seenGames = new Set(); 
           
           if (p.pokemon_v2_pokemongameindices) {
-              p.pokemon_v2_pokemongameindices.forEach(g => seenGames.add(g.pokemon_v2_version.name));
+              p.pokemon_v2_pokemongameindices.forEach(g => seenGames.add(g.pokemon_v2_version?.name));
           }
 
           const specy = p.pokemon_v2_pokemonspecy;
@@ -775,7 +785,7 @@ service cloud.firestore {
             else if (hans) parsedName = hans.name;
 
             const allFlavors = specy.pokemon_v2_pokemonspeciesflavortexts || [];
-            allFlavors.forEach(f => seenGames.add(f.pokemon_v2_version.name));
+            allFlavors.forEach(f => seenGames.add(f.pokemon_v2_version?.name));
 
             const cnFlavors = allFlavors.filter(f => ["zh-hant", "zh-hans", "zh-tw"].includes(f.pokemon_v2_language.name.toLowerCase()));
             const jaFlavors = allFlavors.filter(f => ["ja", "ja-hrkt"].includes(f.pokemon_v2_language.name.toLowerCase()));
@@ -794,8 +804,19 @@ service cloud.firestore {
                 isFallback = true;
             }
 
+            // 手動補丁：皮卡丘
+            let finalGamesArr = Array.from(seenGames);
+            if (speciesId === 25) {
+                finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
+            }
+            finalGamesArr = filterGamesByForm(finalGamesArr, parsedName || p.name);
+            finalGamesArr = [...new Set(finalGamesArr)];
+
+            // 【核心修正】：過濾掉不屬於此型態世代的說明版本，並加入可選串連防護 (?.)
+            targetFlavors = targetFlavors.filter(f => finalGamesArr.includes(f.pokemon_v2_version?.name));
+
             targetFlavors.forEach(f => {
-              const vName = f.pokemon_v2_version.name;
+              const vName = f.pokemon_v2_version?.name || "default";
               if (!seenVersions.has(vName)) {
                 seenVersions.add(vName);
                 flavorTexts.push({
@@ -824,20 +845,6 @@ service cloud.firestore {
           }
           finalGamesArr = filterGamesByForm(finalGamesArr, p.name);
           finalGamesArr = [...new Set(finalGamesArr)];
-
-          // 【核心修正】：過濾掉不屬於此型態世代的說明版本！
-          targetFlavors = targetFlavors.filter(f => finalGamesArr.includes(f.pokemon_v2_version.name));
-
-          targetFlavors.forEach(f => {
-            const vName = f.pokemon_v2_version.name;
-            if (!seenVersions.has(vName)) {
-              seenVersions.add(vName);
-              flavorTexts.push({
-                version: vName,
-                text: fallbackMsg + f.flavor_text.replace(/[\f\n\r]/g, ' ')
-              });
-            }
-          });
 
           const spriteUrl = p.id <= 251 
             ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/${p.id}.png`
