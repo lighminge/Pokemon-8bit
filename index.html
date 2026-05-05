@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>8-bit 雲端圖鑑</title>
+  <title>Pokemon 8bit版本圖鑑</title>
   <!-- 引入 Tailwind CSS -->
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- 引入 Lucide Icons -->
@@ -38,7 +38,7 @@
   <div class="mb-6 text-center">
     <h1 class="text-yellow-400 text-3xl font-black flex items-center justify-center gap-2 drop-shadow-md">
       <i data-lucide="zap" class="fill-yellow-400 w-8 h-8"></i>
-      Firebase 雲端圖鑑
+      Pokemon 8bit版本圖鑑
       <i data-lucide="zap" class="fill-yellow-400 w-8 h-8"></i>
     </h1>
     <p class="text-emerald-400 text-xs mt-2 font-mono uppercase flex items-center justify-center gap-1">
@@ -125,10 +125,10 @@ service cloud.firestore {
         <!-- 圖片與新功能區塊 -->
         <div class="flex justify-center mb-5 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-48 items-center relative overflow-hidden">
           
-          <!-- 新增：地區型態徽章 -->
-          <div id="badge-regional" class="absolute top-2 left-2 z-20 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow border border-indigo-800 hidden flex items-center gap-1">
-            <i data-lucide="globe" class="w-3 h-3"></i> 地區型態
-          </div>
+          <!-- 修改：地區型態徽章 (變為可點擊切換的按鈕) -->
+          <button id="btn-regional" class="absolute top-2 left-2 z-20 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow border border-indigo-800 hover:bg-indigo-500 active:scale-95 transition-all hidden flex items-center gap-1 cursor-pointer" title="點擊切換不同型態">
+            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 切換型態
+          </button>
 
           <!-- 新增：色違切換按鈕 -->
           <button id="btn-shiny" class="absolute top-2 right-2 z-20 bg-slate-800 text-yellow-400 p-2 rounded-full border-2 border-slate-600 hover:bg-slate-700 active:scale-95 transition-all hidden" title="切換色違">
@@ -313,7 +313,7 @@ service cloud.firestore {
       pokeSprite: document.getElementById('poke-sprite'),
       pokeSpriteFallback: document.getElementById('poke-sprite-fallback'),
       btnShiny: document.getElementById('btn-shiny'), // 色違切換按鈕
-      badgeRegional: document.getElementById('badge-regional'), // 地區型態標章
+      btnRegional: document.getElementById('btn-regional'), // 地區型態切換按鈕
       pokeTypes: document.getElementById('poke-types'),
       pokeHeight: document.getElementById('poke-height'),
       pokeWeight: document.getElementById('poke-weight'),
@@ -359,30 +359,27 @@ service cloud.firestore {
 
     function renderPokemon(data) {
       currentPokemonData = data;
-      isShinyView = false; // 切換寶可夢時重置色違狀態
+      isShinyView = false;
       
       elements.pokeId.innerText = `NO. ${String(data.id).padStart(4, '0')}`;
       elements.pokeName.innerText = data.name;
       
-      // 色違按鈕樣式重置
       elements.btnShiny.classList.remove('bg-yellow-400', 'text-slate-800');
       elements.btnShiny.classList.add('bg-slate-800', 'text-yellow-400');
       
-      // 顯示/隱藏色違按鈕 (確保該寶可夢有色違圖檔)
       if (data.shinySpriteUrl) {
           elements.btnShiny.classList.remove('hidden');
       } else {
           elements.btnShiny.classList.add('hidden');
       }
 
-      // 顯示/隱藏地區型態標章
-      if (data.hasRegionalForm) {
-          elements.badgeRegional.classList.remove('hidden');
+      // 顯示/隱藏地區型態按鈕
+      if (data.varieties && data.varieties.length > 1) {
+          elements.btnRegional.classList.remove('hidden');
       } else {
-          elements.badgeRegional.classList.add('hidden');
+          elements.btnRegional.classList.add('hidden');
       }
 
-      // 圖片渲染
       if (data.spriteUrl) {
         elements.pokeSprite.src = data.spriteUrl;
         elements.pokeSprite.classList.remove('hidden');
@@ -395,14 +392,12 @@ service cloud.firestore {
       elements.pokeHeight.innerText = `${data.height / 10} m`;
       elements.pokeWeight.innerText = `${data.weight / 10} kg`;
 
-      // 渲染屬性標籤
       elements.pokeTypes.innerHTML = data.types.map(t => {
         const colorClass = TYPE_COLORS[t] || 'bg-slate-500';
         const typeName = TYPE_MAP[t] || t;
         return `<span class="${colorClass} text-white px-6 py-2 rounded-xl text-sm font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
       }).join('');
 
-      // 渲染多世代說明下拉選單
       if (data.flavorTexts && data.flavorTexts.length > 0) {
         elements.flavorSelect.innerHTML = data.flavorTexts.map((f, idx) => {
           const vName = VERSION_MAP[f.version] || f.version;
@@ -417,18 +412,15 @@ service cloud.firestore {
       }
     }
 
-    // 色違切換事件
     elements.btnShiny.addEventListener('click', () => {
       if (!currentPokemonData || !currentPokemonData.shinySpriteUrl) return;
       isShinyView = !isShinyView;
       
-      // 切換按鈕視覺
       elements.btnShiny.classList.toggle('bg-yellow-400', isShinyView);
       elements.btnShiny.classList.toggle('text-slate-800', isShinyView);
       elements.btnShiny.classList.toggle('bg-slate-800', !isShinyView);
       elements.btnShiny.classList.toggle('text-yellow-400', !isShinyView);
       
-      // 切換圖片，加入彈跳動畫特效
       elements.pokeSprite.classList.remove('scale-100');
       elements.pokeSprite.classList.add('scale-75', 'opacity-50');
       setTimeout(() => {
@@ -438,32 +430,42 @@ service cloud.firestore {
       }, 150);
     });
 
-    // 下拉選單切換事件
+    // 地區型態切換事件 (點擊後自動跳轉下一種型態)
+    elements.btnRegional.addEventListener('click', () => {
+      if (!currentPokemonData || !currentPokemonData.varieties || currentPokemonData.varieties.length <= 1) return;
+      const vars = currentPokemonData.varieties;
+      const currentIndex = vars.indexOf(currentPokemonData.id);
+      let nextIndex = currentIndex + 1;
+      if (nextIndex >= vars.length) nextIndex = 0; // 如果已經是最後一個型態，則回到原始型態
+      fetchPokemon(vars[nextIndex]);
+    });
+
     elements.flavorSelect.addEventListener('change', (e) => {
       if (!currentPokemonData || !currentPokemonData.flavorTexts) return;
       const idx = e.target.value;
       elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[idx].text;
     });
 
-    // 左右切換按鈕事件
+    // 左右切換按鈕事件 (確保使用原始物種 ID 來增減)
     elements.btnPrev.addEventListener('click', () => {
-      if (currentPokemonId > 1) fetchPokemon(currentPokemonId - 1);
+      const baseId = currentPokemonData?.speciesId || currentPokemonId;
+      if (baseId > 1) fetchPokemon(baseId - 1);
     });
 
     elements.btnNext.addEventListener('click', () => {
-      if (currentPokemonId < MAX_POKEMON_ID) fetchPokemon(currentPokemonId + 1);
+      const baseId = currentPokemonData?.speciesId || currentPokemonId;
+      if (baseId < MAX_POKEMON_ID) fetchPokemon(baseId + 1);
     });
 
-    // 4. 解析引擎 (加入三層語言防護、色違與地區型態分析)
+    // 4. 解析引擎 (支援多型態擷取)
     async function fetchAndParseFromPokeAPI(targetId) {
-      const [pkmnRes, speciesRes] = await Promise.all([
-        fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`, { cache: 'no-cache' }),
-        fetch(`https://pokeapi.co/api/v2/pokemon-species/${targetId}`, { cache: 'no-cache' })
-      ]);
-
-      if (!pkmnRes.ok || !speciesRes.ok) throw new Error("API_NOT_FOUND");
-
+      // 確保即使讀取地區型態 (如 ID: 10100) 也能找到正確的 species 資料
+      const pkmnRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`, { cache: 'no-cache' });
+      if (!pkmnRes.ok) throw new Error("API_NOT_FOUND");
       const pkmnData = await pkmnRes.json();
+
+      const speciesRes = await fetch(pkmnData.species.url, { cache: 'no-cache' });
+      if (!speciesRes.ok) throw new Error("API_NOT_FOUND");
       const speciesData = await speciesRes.json();
 
       let parsedName = null;
@@ -478,13 +480,28 @@ service cloud.firestore {
          throw new Error("無法從官方取得繁體中文譯名，已拒絕寫入資料庫！");
       }
 
-      // 分析是否含有地區型態 (阿羅拉, 伽勒爾, 洗翠, 帕底亞)
-      const hasRegionalForm = speciesData.varieties?.some(v => {
-          const n = v.pokemon.name;
-          return n.includes('-alola') || n.includes('-galar') || n.includes('-hisui') || n.includes('-paldea');
-      }) || false;
+      // 追加地區型態名稱後綴
+      const formSuffixes = {
+        '-alola': ' (阿羅拉)',
+        '-galar': ' (伽勒爾)',
+        '-hisui': ' (洗翠)',
+        '-paldea': ' (帕底亞)',
+        '-mega': ' (超級)',
+        '-gmax': ' (超極巨化)'
+      };
+      for (const [key, val] of Object.entries(formSuffixes)) {
+         if (pkmnData.name.includes(key)) {
+            parsedName += val;
+            break;
+         }
+      }
 
-      // 提取多世代說明 (防線：中文 -> 日文 -> 英文)
+      // 提取該寶可夢所有的型態 ID
+      const varieties = speciesData.varieties.map(v => {
+         const parts = v.pokemon.url.split('/').filter(Boolean);
+         return parseInt(parts[parts.length - 1]);
+      });
+
       const flavorTexts = [];
       const seenVersions = new Set();
       
@@ -492,13 +509,11 @@ service cloud.firestore {
         let targetEntries = speciesData.flavor_text_entries.filter(e => ["zh-Hant", "zh-tw", "zh-Hans"].includes(e.language.name));
         let fallbackMsg = "";
         
-        // 日文備援
         if (targetEntries.length === 0) {
           targetEntries = speciesData.flavor_text_entries.filter(e => ["ja", "ja-Hrkt"].includes(e.language.name));
           if (targetEntries.length > 0) fallbackMsg = "[無官方中文，顯示日文] ";
         }
         
-        // 英文終極備援
         if (targetEntries.length === 0) {
           targetEntries = speciesData.flavor_text_entries.filter(e => e.language.name === "en");
           if (targetEntries.length > 0) fallbackMsg = "[無官方中日文，顯示英文] ";
@@ -525,26 +540,24 @@ service cloud.firestore {
 
       return {
         id: pkmnData.id || targetId,
+        speciesId: speciesData.id, // 儲存原始物種 ID
         name: parsedName,
         types: (pkmnData.types || []).map(t => t.type.name),
         height: pkmnData.height || 0,
         weight: pkmnData.weight || 0,
         spriteUrl: parsedSprite,
         shinySpriteUrl: parsedShinySprite,
-        hasRegionalForm: hasRegionalForm,
+        varieties: varieties, // 寫入型態陣列
         flavorText: flavorTexts[0].text,
         flavorTexts: flavorTexts,
         updatedAt: new Date().toISOString()
       };
     }
 
-    // 5. 查詢邏輯 (含自動更新新欄位判定)
+    // 5. 查詢邏輯 (開放讀取特殊地區型態的超大 ID)
     async function fetchPokemon(searchId) {
       if (!currentUser) return;
-      if (!searchId || searchId < 1 || searchId > MAX_POKEMON_ID) {
-        showView('error', `請輸入 1-${MAX_POKEMON_ID} 之間的編號`);
-        return;
-      }
+      if (!searchId || searchId < 1) return; // 移除 1025 上限，允許讀取超過 10000 的地區型態 ID
 
       currentPokemonId = searchId;
       elements.input.value = "";
@@ -558,11 +571,10 @@ service cloud.firestore {
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          // 如果舊資料缺乏新欄位(色違或多世代)，自動重新同步
-          const needsUpgrade = !data.flavorTexts || data.flavorTexts.length === 0 || data.hasRegionalForm === undefined || data.shinySpriteUrl === undefined;
+          const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId;
 
           if (needsUpgrade) {
-            console.log(`[Auto-Upgrade] 升級 ID ${searchId} 的資料結構...`);
+            console.log(`[Auto-Upgrade] 升級 ID ${searchId} 的資料結構以支援型態切換...`);
             const cleanData = await fetchAndParseFromPokeAPI(searchId);
             await setDoc(docRef, cleanData);
             renderPokemon(cleanData);
@@ -588,7 +600,7 @@ service cloud.firestore {
       }
     }
 
-    // 6. GraphQL 高速資料庫升級作業 (包含三層備援與色違、地區判定)
+    // 6. GraphQL 高速資料庫升級作業 (包含三層備援與地區判定)
     elements.syncBtn.addEventListener('click', async () => {
       if (!currentUser || isSyncing) return;
       
@@ -613,7 +625,7 @@ service cloud.firestore {
               }
               pokemon_v2_pokemonspecy {
                 pokemon_v2_pokemons {
-                  name
+                  id
                 }
                 pokemon_v2_pokemonspeciesnames {
                   name
@@ -649,16 +661,12 @@ service cloud.firestore {
           let parsedName = null;
           const flavorTexts = [];
           const seenVersions = new Set();
-          let hasRegionalForm = false;
           
           const specy = p.pokemon_v2_pokemonspecy;
+          // 透過 GraphQL 一併把這隻寶可夢的所有型態 ID 抓下來
+          const varieties = specy?.pokemon_v2_pokemons?.map(v => v.id) || [p.id];
+          
           if (specy) {
-            // 地區型態判斷
-            hasRegionalForm = specy.pokemon_v2_pokemons?.some(v => {
-                const n = v.name;
-                return n.includes('-alola') || n.includes('-galar') || n.includes('-hisui') || n.includes('-paldea');
-            }) || false;
-
             const names = specy.pokemon_v2_pokemonspeciesnames || [];
             const hant = names.find(n => n.pokemon_v2_language.name === "zh-Hant");
             const hans = names.find(n => n.pokemon_v2_language.name === "zh-Hans");
@@ -713,13 +721,14 @@ service cloud.firestore {
 
           const cleanData = {
             id: p.id,
+            speciesId: p.id, // 新增：紀錄物種原始 ID 方便左右切換
             name: parsedName,
             types: p.pokemon_v2_pokemontypes.map(t => t.pokemon_v2_type.name),
             height: p.height || 0,
             weight: p.weight || 0,
             spriteUrl: spriteUrl,
             shinySpriteUrl: shinyUrl,
-            hasRegionalForm: hasRegionalForm,
+            varieties: varieties, // 新增：紀錄所有型態的 ID
             flavorText: flavorTexts[0].text,
             flavorTexts: flavorTexts,
             updatedAt: new Date().toISOString()
@@ -752,8 +761,10 @@ service cloud.firestore {
     elements.form.addEventListener('submit', (e) => {
       e.preventDefault();
       const val = parseInt(elements.input.value);
-      if (val) {
+      if (val >= 1 && val <= MAX_POKEMON_ID) {
         fetchPokemon(val);
+      } else {
+        alert(`搜尋編號必須在 1 到 ${MAX_POKEMON_ID} 之間。`);
       }
     });
 
