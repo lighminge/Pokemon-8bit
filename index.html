@@ -128,7 +128,7 @@ service cloud.firestore {
       <!-- 視圖：寶可夢資料 -->
       <div id="view-pokemon" class="animate-fade-in flex-grow flex flex-col mt-4 hidden">
         
-        <!-- 名稱列 -->
+        <!-- 名稱列 (修正：顯示物種編號而非型態ID，並套用青色發光樣式) -->
         <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-4 flex justify-between items-center px-5 shadow-md">
           <span id="poke-id" class="text-xl md:text-2xl font-black font-mono text-cyan-300 bg-slate-800 px-3 py-1 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.2)] border border-cyan-700/50 tracking-wider"></span>
           <span id="poke-name" class="text-3xl font-black text-yellow-400 tracking-wide"></span>
@@ -169,12 +169,12 @@ service cloud.firestore {
           </div>
         </div>
 
-        <!-- 新增：登場世代與版本 -->
+        <!-- 登場世代與版本 -->
         <div class="bg-slate-100 p-3 rounded-xl border-2 border-slate-200 mb-4">
           <div class="text-[10px] text-slate-500 font-black uppercase flex items-center gap-1 mb-2">
             <i data-lucide="gamepad-2" class="w-4 h-4 text-slate-400"></i> 登場版本
           </div>
-          <div id="poke-games" class="flex flex-wrap gap-1.5 max-h-[50px] overflow-y-auto custom-scrollbar">
+          <div id="poke-games" class="flex flex-wrap gap-1.5 max-h-[90px] overflow-y-auto custom-scrollbar pr-1 pb-1">
              <!-- 動態版本標籤填入 -->
           </div>
         </div>
@@ -230,7 +230,7 @@ service cloud.firestore {
     </div>
     
     <p class="text-slate-300 text-sm mb-4 leading-relaxed bg-slate-900/50 p-3 rounded border border-slate-700">
-      點擊下方按鈕以套用最新升級。<br>本次將自動匯入<strong class="text-yellow-400">「地區型態切換」</strong>與<strong class="text-yellow-400">「登場版本紀錄」</strong>，若資料庫存有舊錯誤資料，系統將自動修復覆蓋，確保永久顯示中文。
+      點擊下方按鈕以套用最新升級。<br>本次將自動匯入<strong class="text-yellow-400">「地區型態切換」</strong>與<strong class="text-yellow-400">「完整登場版本紀錄」</strong>，系統將自動修復覆蓋地區型態的錯誤版本，並補上最新世代的資訊。
     </p>
 
     <!-- 同步中介面 -->
@@ -302,7 +302,24 @@ service cloud.firestore {
       'brilliant-diamond': '晶燦鑽石', 'shining-pearl': '明亮珍珠',
       'legends-arceus': '傳說 阿爾宙斯',
       'scarlet': '朱', 'violet': '紫',
+      'the-teal-mask': '碧之假面',
+      'the-indigo-disk': '藍之圓盤',
+      'legends-z-a': '傳說 Z-A',
       'default': '預設說明'
+    };
+
+    // 用於過濾地區型態登場版本的世代對照表
+    const GAME_GENERATIONS = {
+      'red': 1, 'blue': 1, 'yellow': 1,
+      'gold': 2, 'silver': 2, 'crystal': 2,
+      'ruby': 3, 'sapphire': 3, 'emerald': 3, 'firered': 3, 'leafgreen': 3,
+      'diamond': 4, 'pearl': 4, 'platinum': 4, 'heartgold': 4, 'soulsilver': 4,
+      'black': 5, 'white': 5, 'black-2': 5, 'white-2': 5,
+      'x': 6, 'y': 6, 'omega-ruby': 6, 'alpha-sapphire': 6,
+      'sun': 7, 'moon': 7, 'ultra-sun': 7, 'ultra-moon': 7, 'lets-go-pikachu': 7, 'lets-go-eevee': 7,
+      'sword': 8, 'shield': 8, 'brilliant-diamond': 8, 'shining-pearl': 8, 'legends-arceus': 8,
+      'scarlet': 9, 'violet': 9, 'the-teal-mask': 9, 'the-indigo-disk': 9,
+      'legends-z-a': 10
     };
 
     const TYPE_COLORS = {
@@ -338,7 +355,7 @@ service cloud.firestore {
       pokeTypes: document.getElementById('poke-types'),
       pokeHeight: document.getElementById('poke-height'),
       pokeWeight: document.getElementById('poke-weight'),
-      pokeGames: document.getElementById('poke-games'), // 新增：登場版本容器
+      pokeGames: document.getElementById('poke-games'), 
       pokeFlavor: document.getElementById('poke-flavor'),
       flavorSelect: document.getElementById('flavor-version-select'),
       btnPrev: document.getElementById('btn-prev'),
@@ -379,11 +396,29 @@ service cloud.firestore {
       lucide.createIcons();
     }
 
+    // 地區型態世代過濾器 (防止阿羅拉等新型態出現在初代)
+    function filterGamesByForm(gamesArr, formName) {
+      let minGen = 1;
+      const lowerName = formName.toLowerCase();
+      if (lowerName.includes('-alola') || lowerName.includes('阿羅拉')) minGen = 7;
+      else if (lowerName.includes('-galar') || lowerName.includes('伽勒爾')) minGen = 8;
+      else if (lowerName.includes('-hisui') || lowerName.includes('洗翠')) minGen = 8;
+      else if (lowerName.includes('-paldea') || lowerName.includes('帕底亞')) minGen = 9;
+      else if (lowerName.includes('-mega') || lowerName.includes('超級')) minGen = 6;
+      else if (lowerName.includes('-gmax') || lowerName.includes('超極巨化')) minGen = 8;
+
+      return gamesArr.filter(g => {
+          const gen = GAME_GENERATIONS[g] || 1;
+          return gen >= minGen;
+      });
+    }
+
     function renderPokemon(data) {
       currentPokemonData = data;
       isShinyView = false;
       
-      elements.pokeId.innerText = `NO. ${String(data.id).padStart(4, '0')}`;
+      // 確保顯示的編號始終為原始物種 ID (例如阿羅拉雷丘依然顯示 0026)
+      elements.pokeId.innerText = `NO. ${String(data.speciesId || data.id).padStart(4, '0')}`;
       elements.pokeName.innerText = data.name;
       
       elements.btnShiny.classList.remove('bg-yellow-400', 'text-slate-800');
@@ -419,11 +454,11 @@ service cloud.firestore {
         return `<span class="${colorClass} text-white px-6 py-1.5 rounded-xl text-sm font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
       }).join('');
 
-      // 新增：渲染登場版本標籤
+      // 渲染登場版本標籤
       if (data.games && data.games.length > 0) {
         elements.pokeGames.innerHTML = data.games.map(v => {
           const vName = VERSION_MAP[v] || v;
-          return `<span class="bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm border border-slate-400">${vName}</span>`;
+          return `<span class="bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm border border-slate-400 whitespace-nowrap">${vName}</span>`;
         }).join('');
       } else {
         elements.pokeGames.innerHTML = `<span class="text-slate-400 text-[10px] font-bold">暫無資料</span>`;
@@ -530,19 +565,28 @@ service cloud.firestore {
 
       const flavorTexts = [];
       const seenVersions = new Set();
-      const seenGames = new Set(); // 新增：用於記錄所有登場世代
+      const seenGames = new Set(); 
       let isFallback = false;
       
-      // 1. 從 game_indices 獲取絕對的登場版本
+      // 從遊戲索引與圖鑑說明中搜集全部登場版本 (無語言限制，確保黃版等皆收錄)
       if (pkmnData.game_indices) {
           pkmnData.game_indices.forEach(g => seenGames.add(g.version.name));
       }
-
-      // 擷取說明文字並收集登場版本 (games)
       if (speciesData.flavor_text_entries) {
-        // 2. 從所有的 flavor_text_entries 獲取版本 (無語言限制，確保全版本收錄)
-        speciesData.flavor_text_entries.forEach(e => seenGames.add(e.version.name));
+          speciesData.flavor_text_entries.forEach(e => seenGames.add(e.version.name));
+      }
 
+      // 手動補丁：針對特定熱門寶可夢強制加入最新世代，彌補 PokeAPI 的延遲
+      let finalGamesArr = Array.from(seenGames);
+      if (speciesData.id === 25) { // Pikachu 補強
+          finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
+      }
+      
+      // 地區型態濾網：清除不合理的舊世代版本
+      finalGamesArr = filterGamesByForm(finalGamesArr, parsedName);
+      finalGamesArr = [...new Set(finalGamesArr)]; // 去除重複
+
+      if (speciesData.flavor_text_entries) {
         let targetEntries = speciesData.flavor_text_entries.filter(e => ["zh-hant", "zh-tw", "zh-hans"].includes(e.language.name.toLowerCase()));
         let fallbackMsg = "";
         
@@ -588,7 +632,7 @@ service cloud.firestore {
         spriteUrl: parsedSprite,
         shinySpriteUrl: parsedShinySprite,
         varieties: varieties, 
-        games: Array.from(seenGames), // 修正：使用完整的登場版本陣列
+        games: finalGamesArr, 
         flavorText: flavorTexts[0].text,
         flavorTexts: flavorTexts,
         isFallback: isFallback,
@@ -596,7 +640,7 @@ service cloud.firestore {
       };
     }
 
-    // 5. 查詢邏輯 (Auto-Heal: 包含 games 欄位檢查)
+    // 5. 查詢邏輯
     async function fetchPokemon(searchId) {
       if (!currentUser) return;
       if (!searchId || searchId < 1) return;
@@ -614,7 +658,6 @@ service cloud.firestore {
         if (docSnap.exists()) {
           const data = docSnap.data();
           
-          // 如果缺乏新的 games (登場版本) 陣列，啟動強制更新
           const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId || !data.games;
           const hasChineseName = /[\u4e00-\u9fa5]/.test(data.name);
           const isIncorrectLanguage = !hasChineseName && data.isFallback !== true;
@@ -673,6 +716,7 @@ service cloud.firestore {
                 pokemon_v2_type { name }
               }
               pokemon_v2_pokemonspecy {
+                id
                 pokemon_v2_pokemons { id }
                 pokemon_v2_pokemonspeciesnames {
                   name
@@ -708,27 +752,25 @@ service cloud.firestore {
           let parsedName = null;
           const flavorTexts = [];
           const seenVersions = new Set();
-          const seenGames = new Set(); // 新增：用於記錄所有登場世代
+          const seenGames = new Set(); 
           
-          // 1. 從 game_indices 提取
           if (p.pokemon_v2_pokemongameindices) {
               p.pokemon_v2_pokemongameindices.forEach(g => seenGames.add(g.pokemon_v2_version.name));
           }
 
           const specy = p.pokemon_v2_pokemonspecy;
+          const speciesId = specy?.id || p.id;
           const varieties = specy?.pokemon_v2_pokemons?.map(v => v.id) || [p.id];
           let isFallback = false;
           
           if (specy) {
             const names = specy.pokemon_v2_pokemonspeciesnames || [];
-            // 不分大小寫比對，防止 API 回傳變更
             const hant = names.find(n => n.pokemon_v2_language.name.toLowerCase() === "zh-hant");
             const hans = names.find(n => n.pokemon_v2_language.name.toLowerCase() === "zh-hans");
             if (hant) parsedName = hant.name;
             else if (hans) parsedName = hans.name;
 
             const allFlavors = specy.pokemon_v2_pokemonspeciesflavortexts || [];
-            // 2. 從抓下來的 flavor_texts 提取所有版本 (不受後續語言過濾影響)
             allFlavors.forEach(f => seenGames.add(f.pokemon_v2_version.name));
 
             const cnFlavors = allFlavors.filter(f => ["zh-hant", "zh-hans", "zh-tw"].includes(f.pokemon_v2_language.name.toLowerCase()));
@@ -771,6 +813,14 @@ service cloud.firestore {
             continue;
           }
 
+          // 手動補丁：皮卡丘
+          let finalGamesArr = Array.from(seenGames);
+          if (speciesId === 25) {
+              finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
+          }
+          finalGamesArr = filterGamesByForm(finalGamesArr, parsedName);
+          finalGamesArr = [...new Set(finalGamesArr)];
+
           const spriteUrl = p.id <= 251 
             ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/${p.id}.png`
             : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
@@ -781,7 +831,7 @@ service cloud.firestore {
 
           const cleanData = {
             id: p.id,
-            speciesId: p.id,
+            speciesId: speciesId,
             name: parsedName,
             types: p.pokemon_v2_pokemontypes.map(t => t.pokemon_v2_type.name),
             height: p.height || 0,
@@ -789,7 +839,7 @@ service cloud.firestore {
             spriteUrl: spriteUrl,
             shinySpriteUrl: shinyUrl,
             varieties: varieties, 
-            games: Array.from(seenGames), // 修正：使用完整的登場版本陣列
+            games: finalGamesArr, 
             flavorText: flavorTexts[0].text,
             flavorTexts: flavorTexts,
             isFallback: isFallback,
