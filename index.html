@@ -397,9 +397,9 @@ service cloud.firestore {
     }
 
     // 地區型態世代過濾器 (防止阿羅拉等新型態出現在初代)
-    function filterGamesByForm(gamesArr, formName) {
+    function filterGamesByForm(gamesArr, apiName) {
       let minGen = 1;
-      const lowerName = formName.toLowerCase();
+      const lowerName = apiName.toLowerCase();
       if (lowerName.includes('-alola') || lowerName.includes('阿羅拉')) minGen = 7;
       else if (lowerName.includes('-galar') || lowerName.includes('伽勒爾')) minGen = 8;
       else if (lowerName.includes('-hisui') || lowerName.includes('洗翠')) minGen = 8;
@@ -582,8 +582,8 @@ service cloud.firestore {
           finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
       }
       
-      // 地區型態濾網：清除不合理的舊世代版本
-      finalGamesArr = filterGamesByForm(finalGamesArr, parsedName);
+      // 地區型態濾網：清除不合理的舊世代版本 (使用精確的 API 內部名稱)
+      finalGamesArr = filterGamesByForm(finalGamesArr, pkmnData.name);
       finalGamesArr = [...new Set(finalGamesArr)]; // 去除重複
 
       if (speciesData.flavor_text_entries) {
@@ -601,6 +601,9 @@ service cloud.firestore {
           if (targetEntries.length > 0) fallbackMsg = "[無官方中日文，顯示英文] ";
           isFallback = true;
         }
+
+        // 【核心修正】：過濾掉不屬於此地區型態的圖鑑說明文字！
+        targetEntries = targetEntries.filter(e => finalGamesArr.includes(e.version.name));
         
         targetEntries.forEach(entry => {
           const vName = entry.version.name;
@@ -707,6 +710,7 @@ service cloud.firestore {
           query {
             pokemon_v2_pokemon(limit: 1025) {
               id
+              name
               height
               weight
               pokemon_v2_pokemongameindices {
@@ -818,8 +822,22 @@ service cloud.firestore {
           if (speciesId === 25) {
               finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
           }
-          finalGamesArr = filterGamesByForm(finalGamesArr, parsedName);
+          finalGamesArr = filterGamesByForm(finalGamesArr, p.name);
           finalGamesArr = [...new Set(finalGamesArr)];
+
+          // 【核心修正】：過濾掉不屬於此型態世代的說明版本！
+          targetFlavors = targetFlavors.filter(f => finalGamesArr.includes(f.pokemon_v2_version.name));
+
+          targetFlavors.forEach(f => {
+            const vName = f.pokemon_v2_version.name;
+            if (!seenVersions.has(vName)) {
+              seenVersions.add(vName);
+              flavorTexts.push({
+                version: vName,
+                text: fallbackMsg + f.flavor_text.replace(/[\f\n\r]/g, ' ')
+              });
+            }
+          });
 
           const spriteUrl = p.id <= 251 
             ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/${p.id}.png`
