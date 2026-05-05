@@ -173,32 +173,36 @@ service cloud.firestore {
   </div>
 
   <!-- 資料庫核心同步工具 -->
-  <div class="mt-12 w-full max-w-lg bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-lg">
+  <div class="mt-12 w-full max-w-lg bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-lg relative overflow-hidden">
+    <!-- 警告裝飾條 -->
+    <div class="absolute top-0 left-0 w-full h-1 bg-yellow-500"></div>
+
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-white font-bold flex items-center gap-2">
-        <i data-lucide="database" class="text-emerald-400 w-5 h-5"></i> Firestore 資料庫管理
+        <i data-lucide="database" class="text-yellow-400 w-5 h-5"></i> 強制重置與寫入工具
       </h3>
       <span class="text-xs bg-slate-900 px-2 py-1 rounded text-slate-400 font-mono">支援 Gen 1-9</span>
     </div>
     
-    <p class="text-slate-400 text-sm mb-4 leading-relaxed">
-      目前系統採用「動態建檔機制」。當有使用者搜尋某編號時，系統會自動抓取網路資料並永久存入 Firebase 資料庫。您也可以點擊下方按鈕，在背景自動將全部 1025 隻寶可夢的資料匯入至雲端。
+    <p class="text-slate-300 text-sm mb-4 leading-relaxed bg-slate-900/50 p-3 rounded border border-slate-700">
+      <strong class="text-yellow-400">若看到英文名稱請點擊此按鈕！</strong><br>
+      這會無視資料庫內的舊有英文資料，強迫系統去抓取最新繁體中文化資料，並<span class="text-red-400 font-bold">覆蓋寫入</span>到 Firebase 裡面。
     </p>
 
     <!-- 同步中介面 -->
     <div id="sync-progress-container" class="w-full hidden">
-      <div class="flex justify-between text-xs text-emerald-400 mb-1 font-mono">
-        <span>SYNCING DATABASE...</span>
+      <div class="flex justify-between text-xs text-yellow-400 mb-1 font-mono">
+        <span>OVERWRITING DATABASE...</span>
         <span id="sync-percentage">0%</span>
       </div>
       <div class="w-full bg-slate-900 rounded-full h-3">
-        <div id="sync-bar" class="bg-emerald-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
+        <div id="sync-bar" class="bg-yellow-500 h-3 rounded-full transition-all duration-300" style="width: 0%"></div>
       </div>
     </div>
 
     <!-- 同步按鈕 -->
-    <button id="sync-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 rounded-lg flex justify-center items-center gap-2 transition-colors border-b-4 border-emerald-800 active:border-b-0 active:translate-y-1">
-      <i data-lucide="cloud" class="w-5 h-5"></i> 開始同步 1-1025 全圖鑑至資料庫
+    <button id="sync-btn" class="w-full bg-yellow-600 hover:bg-yellow-500 text-slate-900 font-black py-3 rounded-lg flex justify-center items-center gap-2 transition-colors border-b-4 border-yellow-800 active:border-b-0 active:translate-y-1">
+      <i data-lucide="hard-drive-download" class="w-5 h-5"></i> 強制覆蓋寫入 1-1025 全圖鑑至資料庫
     </button>
   </div>
 
@@ -299,7 +303,7 @@ service cloud.firestore {
       
       elements.dataSourceLabel.innerHTML = source === 'cloud' 
         ? `<i data-lucide="cloud" class="w-3 h-3 text-green-500"></i> Firebase 讀取`
-        : `<i data-lucide="cloud-off" class="w-3 h-3 text-yellow-500"></i> 網路抓取並建檔`;
+        : `<i data-lucide="cloud-off" class="w-3 h-3 text-yellow-500"></i> 網路抓取並覆蓋建檔`;
       elements.dataSourceLabel.classList.remove('hidden');
       lucide.createIcons();
     }
@@ -382,7 +386,7 @@ service cloud.firestore {
       };
     }
 
-    // 5. 查詢邏輯 (Cache-Aside)
+    // 5. 查詢邏輯 (含：自動修復 Auto-Heal 機制)
     async function fetchPokemon(searchId) {
       if (!currentUser) return;
       if (!searchId || searchId < 1 || searchId > MAX_POKEMON_ID) {
@@ -399,9 +403,22 @@ service cloud.firestore {
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          renderPokemon(data);
-          setIndicators('cloud');
+          
+          // 檢查資料庫名字是否全為英文/數字（代表存到了舊的英文資料）
+          const isEnglishOnly = /^[A-Za-z0-9\-\s]+$/.test(data.name);
+          
+          if (isEnglishOnly) {
+            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 是英文資料，正在強制重新抓取中文並覆蓋...`);
+            const cleanData = await fetchAndParseFromPokeAPI(searchId);
+            await setDoc(docRef, cleanData); // 強制覆蓋舊資料
+            renderPokemon(cleanData);
+            setIndicators('api');
+          } else {
+            renderPokemon(data);
+            setIndicators('cloud');
+          }
         } else {
+          // 資料庫沒資料 -> 網路抓取並寫入
           const cleanData = await fetchAndParseFromPokeAPI(searchId);
           await setDoc(docRef, cleanData);
           renderPokemon(cleanData);
@@ -410,7 +427,6 @@ service cloud.firestore {
         showView('pokemon');
       } catch (err) {
         console.error("Fetch/Database Error:", err);
-        // 捕捉權限錯誤並顯示 UI 提示
         if (err.code === 'permission-denied' || (err.message && err.message.includes('permissions'))) {
           showView('error', "Firestore 權限不足而被拒絕讀寫！", true);
         } else {
@@ -419,11 +435,11 @@ service cloud.firestore {
       }
     }
 
-    // 6. 全圖鑑同步背景作業
+    // 6. 強制全圖鑑覆蓋寫入作業
     elements.syncBtn.addEventListener('click', async () => {
       if (!currentUser || isSyncing) return;
       
-      if (!confirm("即將開始將 1~1025 號寶可夢同步至 Firebase。這會在背景執行，大約需要幾分鐘。\n\n確定要開始嗎？")) return;
+      if (!confirm("警告！\n這將會強制抓取最新中文資料，並「覆蓋掉」您 Firebase 裡的所有舊資料 (1~1025 號)。\n\n確定要開始嗎？")) return;
 
       isSyncing = true;
       elements.syncBtn.classList.add('hidden');
@@ -433,22 +449,20 @@ service cloud.firestore {
       for (let i = 1; i <= MAX_POKEMON_ID; i++) {
         try {
           const docRef = doc(db, 'artifacts', appId, 'public', 'data', 'pokedex', String(i));
-          const docSnap = await getDoc(docRef);
           
-          if (!docSnap.exists()) {
-            const cleanData = await fetchAndParseFromPokeAPI(i);
-            await setDoc(docRef, cleanData);
-          }
+          // 不管資料庫存不存在，直接強迫抓取並覆蓋 (Overwrite)
+          const cleanData = await fetchAndParseFromPokeAPI(i);
+          await setDoc(docRef, cleanData);
           
           successCount++;
           const percent = Math.floor((successCount / MAX_POKEMON_ID) * 100);
           elements.syncPercentage.innerText = `${percent}%`;
           elements.syncBar.style.width = `${percent}%`;
           
+          // 延遲 200ms 防阻擋
           await new Promise(resolve => setTimeout(resolve, 200)); 
         } catch (err) {
           console.warn(`Failed to sync ID ${i}:`, err);
-          // 如果發生權限錯誤，直接中斷迴圈並警告
           if (err.code === 'permission-denied' || (err.message && err.message.includes('permissions'))) {
              alert("權限不足！請至 Firebase Console 修改 Firestore 規則以允許讀寫。同步已中止。");
              break;
@@ -459,8 +473,8 @@ service cloud.firestore {
       isSyncing = false;
       elements.syncBtn.classList.remove('hidden');
       elements.syncContainer.classList.add('hidden');
-      if (successCount === MAX_POKEMON_ID) {
-        alert("✅ 全圖鑑資料庫同步完成！現在所有資料都已經永久儲存在雲端了。");
+      if (successCount > 0) {
+        alert("✅ 強制覆蓋寫入完成！您的 Firebase 已經全部更新為最新的中文化對應資料。");
       }
     });
 
