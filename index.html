@@ -30,6 +30,18 @@
     .animate-fade-in {
       animation: fadeIn 0.4s ease-out forwards;
     }
+    /* 自訂捲軸樣式 */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: #f1f5f9;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 4px;
+    }
   </style>
 </head>
 <body class="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center p-4 text-slate-100">
@@ -117,13 +129,13 @@ service cloud.firestore {
       <div id="view-pokemon" class="animate-fade-in flex-grow flex flex-col mt-4 hidden">
         
         <!-- 名稱列 -->
-        <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-5 flex justify-between items-center px-5 shadow-md">
-          <span id="poke-id" class="text-sm font-mono text-slate-400"></span>
+        <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-4 flex justify-between items-center px-5 shadow-md">
+          <span id="poke-id" class="text-xl md:text-2xl font-black font-mono text-cyan-300 bg-slate-800 px-3 py-1 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.2)] border border-cyan-700/50 tracking-wider"></span>
           <span id="poke-name" class="text-3xl font-black text-yellow-400 tracking-wide"></span>
         </div>
 
         <!-- 圖片與新功能區塊 -->
-        <div class="flex justify-center mb-5 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-48 items-center relative overflow-hidden">
+        <div class="flex justify-center mb-4 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-48 items-center relative overflow-hidden">
           
           <!-- 地區型態徽章 (可點擊切換的按鈕) -->
           <button id="btn-regional" class="absolute top-2 left-2 z-20 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow border border-indigo-800 hover:bg-indigo-500 active:scale-95 transition-all hidden flex items-center gap-1 cursor-pointer" title="點擊切換不同型態">
@@ -141,24 +153,34 @@ service cloud.firestore {
         </div>
 
         <!-- 屬性 -->
-        <div id="poke-types" class="flex justify-center gap-3 mb-5">
+        <div id="poke-types" class="flex justify-center gap-3 mb-4">
            <!-- 動態生成屬性標籤 -->
         </div>
 
         <!-- 數值 -->
-        <div class="grid grid-cols-2 gap-4 mb-5">
-          <div class="bg-slate-100 p-3 rounded-xl flex items-center justify-center gap-3 border-2 border-slate-200">
-            <i data-lucide="thermometer" class="text-slate-600 w-5 h-5"></i>
+        <div class="grid grid-cols-2 gap-4 mb-4">
+          <div class="bg-slate-100 p-2 rounded-xl flex items-center justify-center gap-3 border-2 border-slate-200">
+            <i data-lucide="thermometer" class="text-slate-600 w-4 h-4"></i>
             <span id="poke-height" class="text-lg font-black text-slate-800"></span>
           </div>
-          <div class="bg-slate-100 p-3 rounded-xl flex items-center justify-center gap-3 border-2 border-slate-200">
-            <i data-lucide="weight" class="text-slate-600 w-5 h-5"></i>
+          <div class="bg-slate-100 p-2 rounded-xl flex items-center justify-center gap-3 border-2 border-slate-200">
+            <i data-lucide="weight" class="text-slate-600 w-4 h-4"></i>
             <span id="poke-weight" class="text-lg font-black text-slate-800"></span>
           </div>
         </div>
 
+        <!-- 新增：登場世代與版本 -->
+        <div class="bg-slate-100 p-3 rounded-xl border-2 border-slate-200 mb-4">
+          <div class="text-[10px] text-slate-500 font-black uppercase flex items-center gap-1 mb-2">
+            <i data-lucide="gamepad-2" class="w-4 h-4 text-slate-400"></i> 登場版本
+          </div>
+          <div id="poke-games" class="flex flex-wrap gap-1.5 max-h-[50px] overflow-y-auto custom-scrollbar">
+             <!-- 動態版本標籤填入 -->
+          </div>
+        </div>
+
         <!-- 圖鑑說明 (跨世代選單) -->
-        <div class="bg-[#1e293b] p-4 rounded-xl border-l-[10px] border-yellow-400 flex-grow shadow-lg flex flex-col relative">
+        <div class="bg-[#1e293b] p-4 rounded-xl border-l-[10px] border-yellow-400 flex-grow shadow-lg flex flex-col relative min-h-[100px]">
           <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
             <span class="text-xs text-yellow-400 font-bold tracking-widest flex items-center gap-1">
                <i data-lucide="book-open" class="w-3 h-3"></i>圖鑑檔案
@@ -167,7 +189,7 @@ service cloud.firestore {
                <!-- 動態版本選項 -->
             </select>
           </div>
-          <p id="poke-flavor" class="text-white text-[15px] leading-relaxed font-bold mt-1 overflow-y-auto">
+          <p id="poke-flavor" class="text-white text-[14px] leading-relaxed font-bold mt-1 overflow-y-auto custom-scrollbar pr-1">
             <!-- 動態填入 -->
           </p>
         </div>
@@ -208,7 +230,7 @@ service cloud.firestore {
     </div>
     
     <p class="text-slate-300 text-sm mb-4 leading-relaxed bg-slate-900/50 p-3 rounded border border-slate-700">
-      點擊下方按鈕以套用最新升級。<br>本次將自動匯入<strong class="text-yellow-400">「地區型態切換」</strong>，並啟動<strong class="text-red-400 font-bold">「中文字元淨化引擎」</strong>，若資料庫存有日文錯誤資料，系統將自動修復覆蓋，確保永久顯示中文。
+      點擊下方按鈕以套用最新升級。<br>本次將自動匯入<strong class="text-yellow-400">「地區型態切換」</strong>與<strong class="text-yellow-400">「登場版本紀錄」</strong>，若資料庫存有舊錯誤資料，系統將自動修復覆蓋，確保永久顯示中文。
     </p>
 
     <!-- 同步中介面 -->
@@ -312,10 +334,11 @@ service cloud.firestore {
       pokeSprite: document.getElementById('poke-sprite'),
       pokeSpriteFallback: document.getElementById('poke-sprite-fallback'),
       btnShiny: document.getElementById('btn-shiny'),
-      btnRegional: document.getElementById('btn-regional'), // 地區型態切換按鈕
+      btnRegional: document.getElementById('btn-regional'), 
       pokeTypes: document.getElementById('poke-types'),
       pokeHeight: document.getElementById('poke-height'),
       pokeWeight: document.getElementById('poke-weight'),
+      pokeGames: document.getElementById('poke-games'), // 新增：登場版本容器
       pokeFlavor: document.getElementById('poke-flavor'),
       flavorSelect: document.getElementById('flavor-version-select'),
       btnPrev: document.getElementById('btn-prev'),
@@ -372,7 +395,6 @@ service cloud.firestore {
           elements.btnShiny.classList.add('hidden');
       }
 
-      // 顯示/隱藏地區型態切換按鈕
       if (data.varieties && data.varieties.length > 1) {
           elements.btnRegional.classList.remove('hidden');
       } else {
@@ -394,8 +416,18 @@ service cloud.firestore {
       elements.pokeTypes.innerHTML = data.types.map(t => {
         const colorClass = TYPE_COLORS[t] || 'bg-slate-500';
         const typeName = TYPE_MAP[t] || t;
-        return `<span class="${colorClass} text-white px-6 py-2 rounded-xl text-sm font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
+        return `<span class="${colorClass} text-white px-6 py-1.5 rounded-xl text-sm font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
       }).join('');
+
+      // 新增：渲染登場版本標籤
+      if (data.games && data.games.length > 0) {
+        elements.pokeGames.innerHTML = data.games.map(v => {
+          const vName = VERSION_MAP[v] || v;
+          return `<span class="bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm border border-slate-400">${vName}</span>`;
+        }).join('');
+      } else {
+        elements.pokeGames.innerHTML = `<span class="text-slate-400 text-[10px] font-bold">暫無資料</span>`;
+      }
 
       if (data.flavorTexts && data.flavorTexts.length > 0) {
         elements.flavorSelect.innerHTML = data.flavorTexts.map((f, idx) => {
@@ -429,7 +461,6 @@ service cloud.firestore {
       }, 150);
     });
 
-    // 地區型態切換事件
     elements.btnRegional.addEventListener('click', () => {
       if (!currentPokemonData || !currentPokemonData.varieties || currentPokemonData.varieties.length <= 1) return;
       const vars = currentPokemonData.varieties;
@@ -455,7 +486,7 @@ service cloud.firestore {
       if (baseId < MAX_POKEMON_ID) fetchPokemon(baseId + 1);
     });
 
-    // 4. REST API 解析引擎 (極致穩定版)
+    // 4. REST API 解析引擎
     async function fetchAndParseFromPokeAPI(targetId) {
       const pkmnRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`, { cache: 'no-cache' });
       if (!pkmnRes.ok) throw new Error("API_NOT_FOUND");
@@ -467,7 +498,6 @@ service cloud.firestore {
 
       let parsedName = null;
       if (speciesData.names) {
-        // 忽略大小寫與路徑差異的強力尋找
         const hant = speciesData.names.find(n => n.language.name.toLowerCase() === "zh-hant" || n.language.url.includes("/4/"));
         const hans = speciesData.names.find(n => n.language.name.toLowerCase() === "zh-hans" || n.language.url.includes("/12/"));
         if (hant) parsedName = hant.name;
@@ -500,9 +530,19 @@ service cloud.firestore {
 
       const flavorTexts = [];
       const seenVersions = new Set();
+      const seenGames = new Set(); // 新增：用於記錄所有登場世代
       let isFallback = false;
       
+      // 1. 從 game_indices 獲取絕對的登場版本
+      if (pkmnData.game_indices) {
+          pkmnData.game_indices.forEach(g => seenGames.add(g.version.name));
+      }
+
+      // 擷取說明文字並收集登場版本 (games)
       if (speciesData.flavor_text_entries) {
+        // 2. 從所有的 flavor_text_entries 獲取版本 (無語言限制，確保全版本收錄)
+        speciesData.flavor_text_entries.forEach(e => seenGames.add(e.version.name));
+
         let targetEntries = speciesData.flavor_text_entries.filter(e => ["zh-hant", "zh-tw", "zh-hans"].includes(e.language.name.toLowerCase()));
         let fallbackMsg = "";
         
@@ -548,14 +588,15 @@ service cloud.firestore {
         spriteUrl: parsedSprite,
         shinySpriteUrl: parsedShinySprite,
         varieties: varieties, 
+        games: Array.from(seenGames), // 修正：使用完整的登場版本陣列
         flavorText: flavorTexts[0].text,
         flavorTexts: flavorTexts,
-        isFallback: isFallback, // 紀錄是否為備用語言
+        isFallback: isFallback,
         updatedAt: new Date().toISOString()
       };
     }
 
-    // 5. 查詢邏輯 (最強大的 Auto-Heal 淨化引擎)
+    // 5. 查詢邏輯 (Auto-Heal: 包含 games 欄位檢查)
     async function fetchPokemon(searchId) {
       if (!currentUser) return;
       if (!searchId || searchId < 1) return;
@@ -573,17 +614,15 @@ service cloud.firestore {
         if (docSnap.exists()) {
           const data = docSnap.data();
           
-          // 檢查資料結構是否需要升級
-          const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId;
-          
-          // 【核心防禦】檢查是否有中文字元。如果沒有中文字元，且這筆資料並非「確認過真的沒有中文」的備用資料，就強制重新抓取！
+          // 如果缺乏新的 games (登場版本) 陣列，啟動強制更新
+          const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId || !data.games;
           const hasChineseName = /[\u4e00-\u9fa5]/.test(data.name);
           const isIncorrectLanguage = !hasChineseName && data.isFallback !== true;
 
           if (needsUpgrade || isIncorrectLanguage) {
-            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 存在日文/舊結構，強制淨化更新...`);
+            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 需要補齊版本資料，強制淨化更新...`);
             const cleanData = await fetchAndParseFromPokeAPI(searchId);
-            await setDoc(docRef, cleanData); // 覆蓋掉有問題的日文資料
+            await setDoc(docRef, cleanData);
             renderPokemon(cleanData);
             setIndicators('api');
           } else {
@@ -607,11 +646,11 @@ service cloud.firestore {
       }
     }
 
-    // 6. GraphQL 高速資料庫升級作業 (改用不分大小寫的安全比對)
+    // 6. GraphQL 高速資料庫升級作業
     elements.syncBtn.addEventListener('click', async () => {
       if (!currentUser || isSyncing) return;
       
-      if (!confirm("即將開始「全圖鑑資料淨化」。\n系統將自動清除所有錯放的日文資料，並補齊地區型態。確定要開始嗎？")) return;
+      if (!confirm("即將開始「全圖鑑資料淨化」。\n系統將自動補齊「登場世代版本」，並清除錯放資料。確定要開始嗎？")) return;
 
       isSyncing = true;
       elements.syncBtn.classList.add('hidden');
@@ -627,6 +666,9 @@ service cloud.firestore {
               id
               height
               weight
+              pokemon_v2_pokemongameindices {
+                pokemon_v2_version { name }
+              }
               pokemon_v2_pokemontypes {
                 pokemon_v2_type { name }
               }
@@ -666,7 +708,13 @@ service cloud.firestore {
           let parsedName = null;
           const flavorTexts = [];
           const seenVersions = new Set();
+          const seenGames = new Set(); // 新增：用於記錄所有登場世代
           
+          // 1. 從 game_indices 提取
+          if (p.pokemon_v2_pokemongameindices) {
+              p.pokemon_v2_pokemongameindices.forEach(g => seenGames.add(g.pokemon_v2_version.name));
+          }
+
           const specy = p.pokemon_v2_pokemonspecy;
           const varieties = specy?.pokemon_v2_pokemons?.map(v => v.id) || [p.id];
           let isFallback = false;
@@ -680,6 +728,9 @@ service cloud.firestore {
             else if (hans) parsedName = hans.name;
 
             const allFlavors = specy.pokemon_v2_pokemonspeciesflavortexts || [];
+            // 2. 從抓下來的 flavor_texts 提取所有版本 (不受後續語言過濾影響)
+            allFlavors.forEach(f => seenGames.add(f.pokemon_v2_version.name));
+
             const cnFlavors = allFlavors.filter(f => ["zh-hant", "zh-hans", "zh-tw"].includes(f.pokemon_v2_language.name.toLowerCase()));
             const jaFlavors = allFlavors.filter(f => ["ja", "ja-hrkt"].includes(f.pokemon_v2_language.name.toLowerCase()));
             const enFlavors = allFlavors.filter(f => f.pokemon_v2_language.name.toLowerCase() === "en");
@@ -738,6 +789,7 @@ service cloud.firestore {
             spriteUrl: spriteUrl,
             shinySpriteUrl: shinyUrl,
             varieties: varieties, 
+            games: Array.from(seenGames), // 修正：使用完整的登場版本陣列
             flavorText: flavorTexts[0].text,
             flavorTexts: flavorTexts,
             isFallback: isFallback,
@@ -753,7 +805,7 @@ service cloud.firestore {
           elements.syncBar.style.width = `${percent}%`;
         }
 
-        alert(`✅ 資料淨化升級完成！\n所有日文錯誤皆已修復，成功同步 ${successCount} 筆最新資料！`);
+        alert(`✅ 資料淨化升級完成！\n所有「登場版本」標籤皆已補齊，成功同步 ${successCount} 筆最新資料！`);
         
         fetchPokemon(currentPokemonId);
 
