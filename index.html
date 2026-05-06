@@ -476,110 +476,41 @@
       });
     }
 
-    // 動態讀取棲息地資料 (GraphQL)
-    async function loadEncounters(targetId) {
-      elements.encounterList.innerHTML = `<li class="text-slate-400 flex items-center justify-center h-full gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 搜尋棲息地中...</li>`;
-      lucide.createIcons();
-      elements.versionBtnGrid.innerHTML = '';
-      elements.encounterVersionLabel.innerText = '讀取中...';
+    // 新增：棲息地資料解析共用函式 (一次性過濾並翻譯)
+    function parseEncounters(encountersArray) {
+      const encounterMap = {};
+      if (!encountersArray) return encounterMap;
 
-      try {
-        const query = `
-          query {
-            pokemon_v2_pokemon(where: {id: {_eq: ${targetId}}}) {
-              pokemon_v2_encounters {
-                pokemon_v2_version { name }
-                pokemon_v2_locationarea {
-                  pokemon_v2_locationareanames {
-                    name
-                    pokemon_v2_language { name }
-                  }
-                }
-              }
-            }
+      encountersArray.forEach(enc => {
+        const vName = enc.pokemon_v2_version?.name;
+        if (!vName) return;
+
+        const areaNames = enc.pokemon_v2_locationarea?.pokemon_v2_locationareanames || [];
+        const hant = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hant');
+        const tw = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-tw');
+        const hans = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hans');
+        const ja = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja');
+        const jahrkt = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja-hrkt');
+
+        let locName = hant?.name || tw?.name || hans?.name;
+        if (!locName) {
+          if (ja || jahrkt) {
+             locName = "[日文] " + (ja?.name || jahrkt?.name);
+          } else {
+             locName = "未知區域";
           }
-        `;
-        const res = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ query })
-        });
-        const json = await res.json();
-        const encounters = json.data.pokemon_v2_pokemon[0]?.pokemon_v2_encounters || [];
-
-        const encounterMap = {};
-
-        encounters.forEach(enc => {
-          const vName = enc.pokemon_v2_version.name;
-          const areaNames = enc.pokemon_v2_locationarea.pokemon_v2_locationareanames;
-
-          const hant = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hant');
-          const tw = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-tw');
-          const hans = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hans');
-          const ja = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja');
-          const jahrkt = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja-hrkt');
-
-          let locName = hant?.name || tw?.name || hans?.name;
-          if (!locName) {
-            if (ja || jahrkt) {
-               locName = "[日文] " + (ja?.name || jahrkt?.name);
-            } else {
-               locName = "未知區域";
-            }
-          }
-
-          if (!encounterMap[vName]) encounterMap[vName] = new Set();
-          encounterMap[vName].add(locName);
-        });
-
-        const versions = Object.keys(encounterMap);
-        if (versions.length === 0) {
-           elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex items-center h-full">此型態無野外遇見紀錄。<br>(可能為進化、孵蛋、配佈或 NPC 贈送)</li>`;
-           elements.encounterVersionLabel.innerText = '無版本可選';
-           return;
         }
 
-        // 渲染藍色版本按鈕陣列
-        versions.forEach((v, index) => {
-          const btn = document.createElement('button');
-          // 修正：移除 truncate 單行截斷，改為 flex 置中與自動換行 (break-words) 以完整顯示文字
-          btn.className = "bg-[#0ea5e9] text-white text-[10px] font-bold py-1 px-1 rounded shadow-md border-b-4 border-[#0284c7] active:border-b-0 active:translate-y-[4px] hover:bg-[#38bdf8] transition-all w-full min-h-[36px] flex items-center justify-center text-center break-words leading-tight";
-          btn.innerText = VERSION_MAP[v] || v;
-          btn.onclick = () => {
-             // 重置其他按鈕狀態
-             Array.from(elements.versionBtnGrid.children).forEach(b => {
-                 b.classList.remove('ring-2', 'ring-white', 'bg-[#38bdf8]');
-                 b.classList.add('bg-[#0ea5e9]');
-             });
-             btn.classList.add('ring-2', 'ring-white', 'bg-[#38bdf8]');
-             btn.classList.remove('bg-[#0ea5e9]');
-             
-             elements.encounterVersionLabel.innerText = `【${VERSION_MAP[v] || v}】`;
-             const locs = Array.from(encounterMap[v]);
-             elements.encounterList.innerHTML = locs.map(l => `<li class="border-b border-slate-800 pb-1.5"><span class="mr-1">🔹</span>${l}</li>`).join('');
+        if (!encounterMap[vName]) encounterMap[vName] = new Set();
+        encounterMap[vName].add(locName);
+      });
 
-             // 新增：同步切換左側的圖鑑說明
-             if (currentPokemonData && currentPokemonData.flavorTexts) {
-                 const matchIdx = currentPokemonData.flavorTexts.findIndex(f => f.version === v);
-                 if (matchIdx !== -1) {
-                     // 更新左側的下拉選單選項
-                     elements.flavorSelect.value = matchIdx;
-                     // 同步更新左側的說明文字
-                     elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[matchIdx].text;
-                 }
-             }
-          };
-          elements.versionBtnGrid.appendChild(btn);
-
-          // 預設點擊第一個版本
-          if (index === 0) btn.click();
-        });
-
-      } catch (err) {
-        console.error("Encounter Fetch Error:", err);
-        elements.encounterList.innerHTML = `<li class="text-red-400 flex items-center justify-center h-full">無法載入棲息地資料</li>`;
-        elements.encounterVersionLabel.innerText = '連線失敗';
+      // 轉換 Set 為 Array 以便存入 Firebase
+      const finalMap = {};
+      for (const key in encounterMap) {
+        finalMap[key] = Array.from(encounterMap[key]);
       }
+      return finalMap;
     }
 
     function renderPokemon(data) {
@@ -635,8 +566,47 @@
         elements.flavorSelect.classList.add('hidden');
       }
 
-      // 非同步觸發抓取右側螢幕的棲息地資料
-      loadEncounters(data.id);
+      // 渲染右側棲息地資料 (直接高速讀取 Firebase 內的資料)
+      elements.encounterList.innerHTML = '';
+      elements.versionBtnGrid.innerHTML = '';
+      
+      const encounterMap = data.encounters || {};
+      const versions = Object.keys(encounterMap);
+
+      if (versions.length === 0) {
+         elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex items-center h-full">此型態無野外遇見紀錄。<br>(可能為進化、孵蛋、配佈或 NPC 贈送)</li>`;
+         elements.encounterVersionLabel.innerText = '無版本可選';
+      } else {
+         versions.forEach((v, index) => {
+            const btn = document.createElement('button');
+            btn.className = "bg-[#0ea5e9] text-white text-[10px] font-bold py-1 px-1 rounded shadow-md border-b-4 border-[#0284c7] active:border-b-0 active:translate-y-[4px] hover:bg-[#38bdf8] transition-all w-full min-h-[36px] flex items-center justify-center text-center break-words leading-tight";
+            btn.innerText = VERSION_MAP[v] || v;
+            btn.onclick = () => {
+               Array.from(elements.versionBtnGrid.children).forEach(b => {
+                   b.classList.remove('ring-2', 'ring-white', 'bg-[#38bdf8]');
+                   b.classList.add('bg-[#0ea5e9]');
+               });
+               btn.classList.add('ring-2', 'ring-white', 'bg-[#38bdf8]');
+               btn.classList.remove('bg-[#0ea5e9]');
+               
+               elements.encounterVersionLabel.innerText = `【${VERSION_MAP[v] || v}】`;
+               const locs = encounterMap[v] || [];
+               elements.encounterList.innerHTML = locs.map(l => `<li class="border-b border-slate-800 pb-1.5"><span class="mr-1">🔹</span>${l}</li>`).join('');
+
+               // 同步連動左側的圖鑑說明
+               if (currentPokemonData && currentPokemonData.flavorTexts) {
+                   const matchIdx = currentPokemonData.flavorTexts.findIndex(f => f.version === v);
+                   if (matchIdx !== -1) {
+                       elements.flavorSelect.value = matchIdx;
+                       elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[matchIdx].text;
+                   }
+               }
+            };
+            elements.versionBtnGrid.appendChild(btn);
+
+            if (index === 0) btn.click();
+         });
+      }
     }
 
     elements.btnShiny.addEventListener('click', () => {
@@ -682,7 +652,7 @@
       if (baseId < MAX_POKEMON_ID) fetchPokemon(baseId + 1);
     });
 
-    // 4. REST API 解析引擎
+    // 4. REST API 解析引擎 (全面寫入遭遇地點資料)
     async function fetchAndParseFromPokeAPI(targetId) {
       const pkmnRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`, { cache: 'no-cache' });
       if (!pkmnRes.ok) throw new Error("API_NOT_FOUND");
@@ -691,6 +661,33 @@
       const speciesRes = await fetch(pkmnData.species.url, { cache: 'no-cache' });
       if (!speciesRes.ok) throw new Error("API_NOT_FOUND");
       const speciesData = await speciesRes.json();
+
+      // 追加：透過 GraphQL 同步取得棲息地資料
+      const encounterRes = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: `
+          query {
+            pokemon_v2_pokemon(where: {id: {_eq: ${targetId}}}) {
+              pokemon_v2_encounters {
+                pokemon_v2_version { name }
+                pokemon_v2_locationarea {
+                  pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt"]}}}) {
+                    name
+                    pokemon_v2_language { name }
+                  }
+                }
+              }
+            }
+          }
+        `})
+      });
+      let parsedEncounters = {};
+      if (encounterRes.ok) {
+         const encJson = await encounterRes.json();
+         const rawEncounters = encJson.data?.pokemon_v2_pokemon[0]?.pokemon_v2_encounters || [];
+         parsedEncounters = parseEncounters(rawEncounters);
+      }
 
       let parsedName = null;
       if (speciesData.names) {
@@ -787,7 +784,8 @@
         shinySpriteUrl: parsedShinySprite,
         varieties: varieties, 
         games: finalGamesArr, 
-        flavorText: flavorTexts[0].text,
+        encounters: parsedEncounters, // 新增：一併寫入 Firebase 供永久使用
+        flavorText: flavorTexts[0]?.text || "暫無資料",
         flavorTexts: flavorTexts,
         isFallback: isFallback,
         updatedAt: new Date().toISOString()
@@ -812,7 +810,8 @@
         if (docSnap.exists()) {
           const data = docSnap.data();
           
-          const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId || !data.games;
+          // 檢查是否缺乏 encounters 欄位 (強制升級檢查)
+          const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId || !data.games || !data.encounters;
           const hasChineseName = /[\u4e00-\u9fa5]/.test(data.name);
           const isIncorrectLanguage = !hasChineseName && data.isFallback !== true;
 
@@ -860,6 +859,7 @@
         let pokemonList = [];
         for (let offset = 0; offset <= 1025; offset += 200) {
           elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 200, 1025)} 筆)...`;
+          // 【核心升級】：將 encounters 一併加入批次打包查詢，存入資料庫
           const query = `
             query {
               pokemon_v2_pokemon(limit: 200, offset: ${offset}) {
@@ -884,6 +884,15 @@
                     flavor_text
                     pokemon_v2_version { name }
                     pokemon_v2_language { name }
+                  }
+                }
+                pokemon_v2_encounters {
+                  pokemon_v2_version { name }
+                  pokemon_v2_locationarea {
+                    pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt"]}}}) {
+                      name
+                      pokemon_v2_language { name }
+                    }
                   }
                 }
               }
@@ -1001,6 +1010,10 @@
           finalGamesArr = filterGamesByForm(finalGamesArr, p.name);
           finalGamesArr = [...new Set(finalGamesArr)];
 
+          // 解析這隻寶可夢的棲息地資料
+          const rawEncounters = p.pokemon_v2_encounters || [];
+          const parsedEncounters = parseEncounters(rawEncounters);
+
           const spriteUrl = p.id <= 251 
             ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/${p.id}.png`
             : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
@@ -1020,7 +1033,8 @@
             shinySpriteUrl: shinyUrl,
             varieties: varieties, 
             games: finalGamesArr, 
-            flavorText: flavorTexts[0].text,
+            encounters: parsedEncounters, // 新增：存入 Firebase 供永久快速使用
+            flavorText: flavorTexts[0]?.text || "暫無資料",
             flavorTexts: flavorTexts,
             isFallback: isFallback,
             updatedAt: new Date().toISOString()
