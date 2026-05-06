@@ -44,7 +44,7 @@
     }
   </style>
 </head>
-<body class="min-h-screen bg-[#0f172a] flex flex-col items-center p-4 text-slate-100">
+<body class="min-h-screen bg-[#0f172a] flex flex-col items-center p-4 text-slate-100 pb-20">
 
   <!-- 頂部標題 -->
   <div class="mb-6 text-center mt-4">
@@ -112,13 +112,13 @@
           <!-- 寶可夢主資料區 -->
           <div id="view-pokemon" class="animate-fade-in flex-grow flex flex-col hidden">
             
-            <!-- 名稱列 (修正：移除 truncate 避免被切斷，改為允許斷行) -->
+            <!-- 名稱列 -->
             <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-4 flex justify-between items-center px-4 shadow-md gap-2">
               <span id="poke-id" class="text-lg md:text-xl font-black font-mono text-cyan-300 bg-slate-800 px-3 py-1 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.2)] border border-cyan-700/50 tracking-wider flex-shrink-0"></span>
               <span id="poke-name" class="text-lg md:text-2xl font-black text-yellow-400 tracking-wide text-right break-words leading-tight"></span>
             </div>
 
-            <!-- 圖片與新功能區塊 -->
+            <!-- 圖片區塊 -->
             <div class="flex justify-center mb-4 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-48 items-center relative overflow-hidden">
               <button id="btn-regional" class="absolute top-2 left-2 z-20 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow border border-indigo-800 hover:bg-indigo-500 active:scale-95 transition-all hidden flex items-center gap-1 cursor-pointer" title="點擊切換不同型態">
                 <i data-lucide="refresh-cw" class="w-3 h-3"></i> 切換型態
@@ -144,6 +144,14 @@
                 <i data-lucide="weight" class="text-slate-600 w-4 h-4"></i>
                 <span id="poke-weight" class="text-base font-black text-slate-800"></span>
               </div>
+            </div>
+
+            <!-- 登場世代與版本 -->
+            <div class="bg-slate-100 p-3 rounded-xl border-2 border-slate-200 mb-4">
+              <div class="text-[10px] text-slate-500 font-black uppercase flex items-center gap-1 mb-2">
+                <i data-lucide="gamepad-2" class="w-4 h-4 text-slate-400"></i> 登場版本
+              </div>
+              <div id="poke-games" class="flex flex-wrap gap-1.5 max-h-[90px] overflow-y-auto custom-scrollbar pr-1 pb-1"></div>
             </div>
 
             <!-- 圖鑑說明 (跨世代選單) -->
@@ -190,9 +198,8 @@
          </div>
        </div>
 
-       <!-- 底部實體按鈕群 (完美還原相片配置，加上 md:mb-[180px] 將按鈕向上推擠對齊左側說明欄底部) -->
+       <!-- 底部實體按鈕群 -->
        <div class="mt-auto pt-8 md:mb-[180px]">
-         
          <!-- 小紅燈 與 橫槓裝飾 -->
          <div class="flex items-center gap-2 mb-3 px-2">
            <div class="w-3 h-3 rounded-full bg-red-600 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"></div>
@@ -215,19 +222,12 @@
          <!-- 最底部兩顆深藍色大按鈕 (上一隻 / 下一隻) -->
          <div class="flex gap-4">
            <button id="btn-prev" class="flex-1 h-14 bg-[#0f172a] border-t-2 border-l-2 border-slate-600 border-b-4 border-r-4 border-black rounded shadow-[0_4px_0_#000] hover:bg-slate-800 active:translate-y-[4px] active:shadow-[0_0px_0_#000] active:border-b-2 active:border-r-2 flex items-center justify-center transition-all group cursor-pointer" title="上一隻">
-             <!-- 實心倒三角形 (向左) -->
-             <svg viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 text-cyan-400 group-hover:-translate-x-1 transition-transform drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
-               <polygon points="18,4 6,12 18,20" />
-             </svg>
+             <svg viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 text-cyan-400 group-hover:-translate-x-1 transition-transform drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]"><polygon points="18,4 6,12 18,20" /></svg>
            </button>
            <button id="btn-next" class="flex-1 h-14 bg-[#0f172a] border-t-2 border-l-2 border-slate-600 border-b-4 border-r-4 border-black rounded shadow-[0_4px_0_#000] hover:bg-slate-800 active:translate-y-[4px] active:shadow-[0_0px_0_#000] active:border-b-2 active:border-r-2 flex items-center justify-center transition-all group cursor-pointer" title="下一隻">
-             <!-- 實心正三角形 (向右) -->
-             <svg viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 text-cyan-400 group-hover:translate-x-1 transition-transform drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
-               <polygon points="6,4 18,12 6,20" />
-             </svg>
+             <svg viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 text-cyan-400 group-hover:translate-x-1 transition-transform drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]"><polygon points="6,4 18,12 6,20" /></svg>
            </button>
          </div>
-
        </div>
     </div>
   </div>
@@ -263,121 +263,57 @@
     </button>
   </div>
 
-  <!-- Firebase 與核心邏輯腳本 -->
+  <!-- Firebase 與核心邏輯腳本 (Vanilla JS 模組) -->
   <script type="module">
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js';
     import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js';
     import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js';
 
-    // 初始化 Lucide Icons
     lucide.createIcons();
 
-    // 1. Firebase 初始化
-    const firebaseConfig = {
+    const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
       apiKey: "AIzaSyDEGOs1zTCWzbU3Fl375HaNK7MsahF0nlY",
       authDomain: "github-pokemon-8bit.firebaseapp.com",
       projectId: "github-pokemon-8bit",
       storageBucket: "github-pokemon-8bit.firebasestorage.app",
       messagingSenderId: "475622762326",
-      appId: "1:475622762326:web:86120391237b4cfbc058f7",
-      measurementId: "G-ZF6RPNCCD3"
+      appId: "1:475622762326:web:86120391237b4cfbc058f7"
     };
     
     const app = initializeApp(firebaseConfig);
     const auth = getAuth(app);
     const db = getFirestore(app);
+    const fsAppId = typeof __app_id !== 'undefined' ? __app_id : 'pokedex-app-id';
 
-    // 2. 常數與設定
+    // 核心資料表
     const MAX_POKEMON_ID = 1025;
+    const TYPE_MAP = {
+      normal: '一般', fire: '火', water: '水', grass: '草', electric: '電', ice: '冰', fighting: '格鬥', poison: '毒', ground: '地面', flying: '飛行', psychic: '超能力', bug: '蟲', rock: '岩石', ghost: '幽靈', dragon: '龍', dark: '惡', steel: '鋼', fairy: '妖精'
+    };
+    const VERSION_MAP = {
+      'red': '紅版', 'blue': '藍版', 'yellow': '皮卡丘版', 'gold': '金版', 'silver': '銀版', 'crystal': '水晶版', 'ruby': '紅寶石', 'sapphire': '藍寶石', 'emerald': '綠寶石', 'firered': '火紅', 'leafgreen': '葉綠', 'diamond': '鑽石', 'pearl': '珍珠', 'platinum': '白金', 'heartgold': '心金', 'soulsilver': '魂銀', 'black': '黑版', 'white': '白版', 'black-2': '黑版2', 'white-2': '白版2', 'x': 'X', 'y': 'Y', 'omega-ruby': '終極紅寶石', 'alpha-sapphire': '始源藍寶石', 'sun': '太陽', 'moon': '月亮', 'ultra-sun': '究極之日', 'ultra-moon': '究極之月', 'lets-go-pikachu': 'Let\'s Go! 皮卡丘', 'lets-go-eevee': 'Let\'s Go! 伊布', 'sword': '劍', 'shield': '盾', 'brilliant-diamond': '晶燦鑽石', 'shining-pearl': '明亮珍珠', 'legends-arceus': '傳說 阿爾宙斯', 'scarlet': '朱', 'violet': '紫', 'the-teal-mask': '碧之假面', 'the-indigo-disk': '藍之圓盤', 'legends-z-a': '傳說 Z-A', 'default': '預設說明'
+    };
+    const FORM_SUFFIXES = [
+      { key: '-alola-cap', val: ' (阿羅拉帽子)' }, { key: '-original-cap', val: ' (初始帽子)' }, { key: '-hoenn-cap', val: ' (豐緣帽子)' }, { key: '-sinnoh-cap', val: ' (神奧帽子)' }, { key: '-unova-cap', val: ' (合眾帽子)' }, { key: '-kalos-cap', val: ' (卡洛斯帽子)' }, { key: '-partner-cap', val: ' (搭檔帽子)' }, { key: '-world-cap', val: ' (世界帽子)' }, { key: '-alola', val: ' (阿羅拉型態)' }, { key: '-galar', val: ' (伽勒爾型態)' }, { key: '-hisui', val: ' (洗翠型態)' }, { key: '-paldea', val: ' (帕底亞型態)' }, { key: '-mega-x', val: ' (超級 X)' }, { key: '-mega-y', val: ' (超級 Y)' }, { key: '-mega', val: ' (超級)' }, { key: '-gmax', val: ' (超極巨化)' }, { key: '-cosplay', val: ' (換裝)' }, { key: '-rock-star', val: ' (搖滾)' }, { key: '-belle', val: ' (貴婦)' }, { key: '-pop-star', val: ' (偶像)' }, { key: '-phd', val: ' (博士)' }, { key: '-libre', val: ' (面罩摔角手)' }, { key: '-starter', val: ' (搭檔)' }, { key: '-primal', val: ' (原始)' }, { key: '-battle-bond', val: ' (牽絆變身)' }, { key: '-10-percent', val: ' (10%型態)' }, { key: '-complete', val: ' (完全體)' }, { key: '-bloodmoon', val: ' (赫月)' }
+    ];
+    const GAME_GENERATIONS = {
+      'red': 1, 'blue': 1, 'yellow': 1, 'gold': 2, 'silver': 2, 'crystal': 2, 'ruby': 3, 'sapphire': 3, 'emerald': 3, 'firered': 3, 'leafgreen': 3, 'diamond': 4, 'pearl': 4, 'platinum': 4, 'heartgold': 4, 'soulsilver': 4, 'black': 5, 'white': 5, 'black-2': 5, 'white-2': 5, 'x': 6, 'y': 6, 'omega-ruby': 6, 'alpha-sapphire': 6, 'sun': 7, 'moon': 7, 'ultra-sun': 7, 'ultra-moon': 7, 'lets-go-pikachu': 7, 'lets-go-eevee': 7, 'sword': 8, 'shield': 8, 'brilliant-diamond': 8, 'shining-pearl': 8, 'legends-arceus': 8, 'scarlet': 9, 'violet': 9, 'the-teal-mask': 9, 'the-indigo-disk': 9, 'legends-z-a': 10
+    };
+    const VERSION_SORT_ORDER = {
+      'red': 1, 'blue': 2, 'yellow': 3, 'gold': 4, 'silver': 5, 'crystal': 6, 'ruby': 7, 'sapphire': 8, 'emerald': 9, 'firered': 10, 'leafgreen': 11, 'diamond': 12, 'pearl': 13, 'platinum': 14, 'heartgold': 15, 'soulsilver': 16, 'black': 17, 'white': 18, 'black-2': 19, 'white-2': 20, 'x': 21, 'y': 22, 'omega-ruby': 23, 'alpha-sapphire': 24, 'sun': 25, 'moon': 26, 'ultra-sun': 27, 'ultra-moon': 28, 'lets-go-pikachu': 29, 'lets-go-eevee': 30, 'sword': 31, 'shield': 32, 'brilliant-diamond': 33, 'shining-pearl': 34, 'legends-arceus': 35, 'scarlet': 36, 'violet': 37, 'the-teal-mask': 38, 'the-indigo-disk': 39, 'legends-z-a': 40
+    };
+    const TYPE_COLORS = {
+      normal: 'bg-[#A8A77A]', fire: 'bg-[#EE8130]', water: 'bg-[#6390F0]', grass: 'bg-[#7AC74C]', electric: 'bg-[#F7D02C]', ice: 'bg-[#96D9D6]', fighting: 'bg-[#C22E28]', poison: 'bg-[#A33EA1]', ground: 'bg-[#E2BF65]', flying: 'bg-[#A98FF3]', psychic: 'bg-[#F95587]', bug: 'bg-[#A6B91A]', rock: 'bg-[#B6A136]', ghost: 'bg-[#735797]', dragon: 'bg-[#6F35FC]', dark: 'bg-[#705746]', steel: 'bg-[#B7B7CE]', fairy: 'bg-[#D685AD]'
+    };
+
+    // 全域變數狀態
+    let currentUser = null;
     let currentPokemonId = 25; 
     let currentPokemonData = null; 
     let isShinyView = false;
-
-    const TYPE_MAP = {
-      normal: '一般', fire: '火', water: '水', grass: '草', electric: '電',
-      ice: '冰', fighting: '格鬥', poison: '毒', ground: '地面', flying: '飛行',
-      psychic: '超能力', bug: '蟲', rock: '岩石', ghost: '幽靈', dragon: '龍',
-      dark: '惡', steel: '鋼', fairy: '妖精'
-    };
-    
-    const VERSION_MAP = {
-      'red': '紅版', 'blue': '藍版', 'yellow': '皮卡丘版',
-      'gold': '金版', 'silver': '銀版', 'crystal': '水晶版',
-      'ruby': '紅寶石', 'sapphire': '藍寶石', 'emerald': '綠寶石',
-      'firered': '火紅', 'leafgreen': '葉綠',
-      'diamond': '鑽石', 'pearl': '珍珠', 'platinum': '白金',
-      'heartgold': '心金', 'soulsilver': '魂銀',
-      'black': '黑版', 'white': '白版', 'black-2': '黑版2', 'white-2': '白版2',
-      'x': 'X', 'y': 'Y', 'omega-ruby': '終極紅寶石', 'alpha-sapphire': '始源藍寶石',
-      'sun': '太陽', 'moon': '月亮', 'ultra-sun': '究極之日', 'ultra-moon': '究極之月',
-      'lets-go-pikachu': 'Let\'s Go! 皮卡丘', 'lets-go-eevee': 'Let\'s Go! 伊布',
-      'sword': '劍', 'shield': '盾',
-      'brilliant-diamond': '晶燦鑽石', 'shining-pearl': '明亮珍珠',
-      'legends-arceus': '傳說 阿爾宙斯',
-      'scarlet': '朱', 'violet': '紫',
-      'the-teal-mask': '碧之假面',
-      'the-indigo-disk': '藍之圓盤',
-      'legends-z-a': '傳說 Z-A',
-      'default': '預設說明'
-    };
-
-    const FORM_SUFFIXES = [
-      { key: '-alola-cap', val: ' (阿羅拉帽子)' },
-      { key: '-original-cap', val: ' (初始帽子)' },
-      { key: '-hoenn-cap', val: ' (豐緣帽子)' },
-      { key: '-sinnoh-cap', val: ' (神奧帽子)' },
-      { key: '-unova-cap', val: ' (合眾帽子)' },
-      { key: '-kalos-cap', val: ' (卡洛斯帽子)' },
-      { key: '-partner-cap', val: ' (搭檔帽子)' },
-      { key: '-world-cap', val: ' (世界帽子)' },
-      { key: '-alola', val: ' (阿羅拉型態)' },
-      { key: '-galar', val: ' (伽勒爾型態)' },
-      { key: '-hisui', val: ' (洗翠型態)' },
-      { key: '-paldea', val: ' (帕底亞型態)' },
-      { key: '-mega-x', val: ' (超級 X)' },
-      { key: '-mega-y', val: ' (超級 Y)' },
-      { key: '-mega', val: ' (超級)' },
-      { key: '-gmax', val: ' (超極巨化)' },
-      { key: '-cosplay', val: ' (換裝)' },
-      { key: '-rock-star', val: ' (搖滾)' },
-      { key: '-belle', val: ' (貴婦)' },
-      { key: '-pop-star', val: ' (偶像)' },
-      { key: '-phd', val: ' (博士)' },
-      { key: '-libre', val: ' (面罩摔角手)' },
-      { key: '-starter', val: ' (搭檔)' },
-      { key: '-primal', val: ' (原始)' },
-      { key: '-battle-bond', val: ' (牽絆變身)' },
-      { key: '-10-percent', val: ' (10%型態)' },
-      { key: '-complete', val: ' (完全體)' },
-      { key: '-bloodmoon', val: ' (赫月)' }
-    ];
-
-    const GAME_GENERATIONS = {
-      'red': 1, 'blue': 1, 'yellow': 1,
-      'gold': 2, 'silver': 2, 'crystal': 2,
-      'ruby': 3, 'sapphire': 3, 'emerald': 3, 'firered': 3, 'leafgreen': 3,
-      'diamond': 4, 'pearl': 4, 'platinum': 4, 'heartgold': 4, 'soulsilver': 4,
-      'black': 5, 'white': 5, 'black-2': 5, 'white-2': 5,
-      'x': 6, 'y': 6, 'omega-ruby': 6, 'alpha-sapphire': 6,
-      'sun': 7, 'moon': 7, 'ultra-sun': 7, 'ultra-moon': 7, 'lets-go-pikachu': 7, 'lets-go-eevee': 7,
-      'sword': 8, 'shield': 8, 'brilliant-diamond': 8, 'shining-pearl': 8, 'legends-arceus': 8,
-      'scarlet': 9, 'violet': 9, 'the-teal-mask': 9, 'the-indigo-disk': 9,
-      'legends-z-a': 10
-    };
-
-    const TYPE_COLORS = {
-      normal: 'bg-[#A8A77A]', fire: 'bg-[#EE8130]', water: 'bg-[#6390F0]',
-      grass: 'bg-[#7AC74C]', electric: 'bg-[#F7D02C]', ice: 'bg-[#96D9D6]',
-      fighting: 'bg-[#C22E28]', poison: 'bg-[#A33EA1]', ground: 'bg-[#E2BF65]',
-      flying: 'bg-[#A98FF3]', psychic: 'bg-[#F95587]', bug: 'bg-[#A6B91A]',
-      rock: 'bg-[#B6A136]', ghost: 'bg-[#735797]', dragon: 'bg-[#6F35FC]',
-      dark: 'bg-[#705746]', steel: 'bg-[#B7B7CE]', fairy: 'bg-[#D685AD]'
-    };
-
-    let currentUser = null;
     let isSyncing = false;
 
-    // DOM 元素引用
+    // DOM 參照
     const elements = {
       form: document.getElementById('searchForm'),
       input: document.getElementById('searchInput'),
@@ -398,14 +334,12 @@
       pokeTypes: document.getElementById('poke-types'),
       pokeHeight: document.getElementById('poke-height'),
       pokeWeight: document.getElementById('poke-weight'),
+      pokeGames: document.getElementById('poke-games'), 
       pokeFlavor: document.getElementById('poke-flavor'),
       flavorSelect: document.getElementById('flavor-version-select'),
-      
-      // 新增右側面板元素
       encounterList: document.getElementById('encounter-list'),
       encounterVersionLabel: document.getElementById('encounter-version-label'),
       versionBtnGrid: document.getElementById('version-btn-grid'),
-      
       btnPrev: document.getElementById('btn-prev'),
       btnNext: document.getElementById('btn-next'),
       syncBtn: document.getElementById('sync-btn'),
@@ -415,16 +349,15 @@
       syncStatusText: document.getElementById('sync-status-text')
     };
 
-    // 3. UI 控制函數
+    // 工具函式
     function showView(viewName, errorMsg = "", isPermissionError = false) {
       elements.viewLoading.classList.add('hidden');
       elements.viewError.classList.add('hidden');
       elements.viewPokemon.classList.add('hidden');
       elements.errorHint.classList.add('hidden');
 
-      if (viewName === 'loading') {
-        elements.viewLoading.classList.remove('hidden');
-      } else if (viewName === 'error') {
+      if (viewName === 'loading') elements.viewLoading.classList.remove('hidden');
+      else if (viewName === 'error') {
         elements.errorText.innerText = errorMsg;
         if (isPermissionError) elements.errorHint.classList.remove('hidden');
         elements.viewError.classList.remove('hidden');
@@ -447,7 +380,6 @@
     function filterGamesByForm(gamesArr, apiName) {
       let minGen = 1;
       const lowerName = apiName.toLowerCase();
-      
       if (lowerName.includes('-alola')) minGen = 7;
       else if (lowerName.includes('-galar')) minGen = 8;
       else if (lowerName.includes('-hisui')) minGen = 8;
@@ -462,21 +394,14 @@
       else if (lowerName.includes('zygarde-10') || lowerName.includes('zygarde-complete')) minGen = 7;
       else if (lowerName.includes('bloodmoon')) minGen = 9;
       else if (
-        lowerName.includes('-cosplay') || 
-        lowerName.includes('-rock-star') || 
-        lowerName.includes('-belle') || 
-        lowerName.includes('-pop-star') || 
-        lowerName.includes('-phd') || 
-        lowerName.includes('-libre')
+        lowerName.includes('-cosplay') || lowerName.includes('-rock-star') || 
+        lowerName.includes('-belle') || lowerName.includes('-pop-star') || 
+        lowerName.includes('-phd') || lowerName.includes('-libre')
       ) minGen = 6;
 
-      return gamesArr.filter(g => {
-          const gen = GAME_GENERATIONS[g] || 1;
-          return gen >= minGen;
-      });
+      return gamesArr.filter(g => (GAME_GENERATIONS[g] || 1) >= minGen);
     }
 
-    // 新增：棲息地資料解析共用函式 (升級：優先抓取翻譯較完整的大區域 Location 名稱)
     function parseEncounters(encountersArray) {
       const encounterMap = {};
       if (!encountersArray) return encounterMap;
@@ -485,11 +410,9 @@
         const vName = enc.pokemon_v2_version?.name;
         if (!vName) return;
 
-        // 提取 小區域(Area) 與 大區域(Location) 的名稱陣列
         const areaNames = enc.pokemon_v2_locationarea?.pokemon_v2_locationareanames || [];
         const locNames = enc.pokemon_v2_locationarea?.pokemon_v2_location?.pokemon_v2_locationnames || [];
         
-        // 語言過濾助手函式
         const findName = (namesArr) => {
            const hant = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-hant');
            const tw = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-tw');
@@ -507,14 +430,11 @@
            return null;
         };
 
-        // 【核心修正】：優先使用擁有完整中文翻譯的大區域(Location)，若無才退回使用小區域或未知
         let locName = findName(locNames) || findName(areaNames) || "未知區域";
-
         if (!encounterMap[vName]) encounterMap[vName] = new Set();
         encounterMap[vName].add(locName);
       });
 
-      // 轉換 Set 為 Array 以便存入 Firebase
       const finalMap = {};
       for (const key in encounterMap) {
         finalMap[key] = Array.from(encounterMap[key]);
@@ -522,6 +442,7 @@
       return finalMap;
     }
 
+    // 核心渲染邏輯
     function renderPokemon(data) {
       currentPokemonData = data;
       isShinyView = false;
@@ -532,17 +453,11 @@
       elements.btnShiny.classList.remove('bg-yellow-400', 'text-slate-800');
       elements.btnShiny.classList.add('bg-slate-800', 'text-yellow-400');
       
-      if (data.shinySpriteUrl) {
-          elements.btnShiny.classList.remove('hidden');
-      } else {
-          elements.btnShiny.classList.add('hidden');
-      }
+      if (data.shinySpriteUrl) elements.btnShiny.classList.remove('hidden');
+      else elements.btnShiny.classList.add('hidden');
 
-      if (data.varieties && data.varieties.length > 1) {
-          elements.btnRegional.classList.remove('hidden');
-      } else {
-          elements.btnRegional.classList.add('hidden');
-      }
+      if (data.varieties && data.varieties.length > 1) elements.btnRegional.classList.remove('hidden');
+      else elements.btnRegional.classList.add('hidden');
 
       if (data.spriteUrl) {
         elements.pokeSprite.src = data.spriteUrl;
@@ -559,8 +474,17 @@
       elements.pokeTypes.innerHTML = data.types.map(t => {
         const colorClass = TYPE_COLORS[t] || 'bg-slate-500';
         const typeName = TYPE_MAP[t] || t;
-        return `<span class="${colorClass} text-white px-4 py-1 rounded-xl text-xs font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
+        return `<span class="${colorClass} text-white px-4 py-1.5 rounded-xl text-sm font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
       }).join('');
+
+      if (data.games && data.games.length > 0) {
+        elements.pokeGames.innerHTML = data.games.map(v => {
+          const vName = VERSION_MAP[v] || v;
+          return `<span class="bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm border border-slate-400 whitespace-nowrap">${vName}</span>`;
+        }).join('');
+      } else {
+        elements.pokeGames.innerHTML = `<span class="text-slate-400 text-[10px] font-bold">暫無資料</span>`;
+      }
 
       if (data.flavorTexts && data.flavorTexts.length > 0) {
         elements.flavorSelect.innerHTML = data.flavorTexts.map((f, idx) => {
@@ -575,19 +499,19 @@
         elements.flavorSelect.classList.add('hidden');
       }
 
-      // 渲染右側棲息地資料 (直接高速讀取 Firebase 內的資料)
+      // 渲染右側棲息地
       elements.encounterList.innerHTML = '';
       elements.versionBtnGrid.innerHTML = '';
       
       const encounterMap = data.encounters || {};
       const versions = Object.keys(encounterMap);
+      versions.sort((a, b) => (VERSION_SORT_ORDER[a] || 999) - (VERSION_SORT_ORDER[b] || 999));
 
       if (versions.length === 0) {
-         // 【核心修正】：判斷是否為進化型態，給予玩家更精確的提示
          if (data.isEvolved) {
              elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-2 px-2"><span class="text-yellow-600 font-black text-sm">【 這是進化型態寶可夢 】</span><span class="leading-relaxed text-xs">多數版本無法在野外直接遇見。<br>💡 請搜尋其「退化型態」來尋找棲息地，並透過等級提升或道具進化。</span></li>`;
          } else {
-             elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-1 px-2"><span class="text-yellow-600 font-black">無野外遇見紀錄</span><span class="text-[10px]">可能為孵蛋、配佈、NPC 贈送或最新世代尚未建檔。</span></li>`;
+             elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-1 px-2"><span class="text-yellow-600 font-black">無野外遇見紀錄</span><span class="text-[10px]">可能為孵蛋、配佈、NPC 贈送或尚未建檔。</span></li>`;
          }
          elements.encounterVersionLabel.innerText = '無版本可選';
       } else {
@@ -607,7 +531,7 @@
                const locs = encounterMap[v] || [];
                elements.encounterList.innerHTML = locs.map(l => `<li class="border-b border-slate-800 pb-1.5"><span class="mr-1">🔹</span>${l}</li>`).join('');
 
-               // 同步連動左側的圖鑑說明
+               // 連動左側說明
                if (currentPokemonData && currentPokemonData.flavorTexts) {
                    const matchIdx = currentPokemonData.flavorTexts.findIndex(f => f.version === v);
                    if (matchIdx !== -1) {
@@ -617,16 +541,16 @@
                }
             };
             elements.versionBtnGrid.appendChild(btn);
-
             if (index === 0) btn.click();
          });
       }
+      lucide.createIcons();
     }
 
+    // 事件監聽
     elements.btnShiny.addEventListener('click', () => {
       if (!currentPokemonData || !currentPokemonData.shinySpriteUrl) return;
       isShinyView = !isShinyView;
-      
       elements.btnShiny.classList.toggle('bg-yellow-400', isShinyView);
       elements.btnShiny.classList.toggle('text-slate-800', isShinyView);
       elements.btnShiny.classList.toggle('bg-slate-800', !isShinyView);
@@ -652,8 +576,7 @@
 
     elements.flavorSelect.addEventListener('change', (e) => {
       if (!currentPokemonData || !currentPokemonData.flavorTexts) return;
-      const idx = e.target.value;
-      elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[idx].text;
+      elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[e.target.value].text;
     });
 
     elements.btnPrev.addEventListener('click', () => {
@@ -666,7 +589,14 @@
       if (baseId < MAX_POKEMON_ID) fetchPokemon(baseId + 1);
     });
 
-    // 4. REST API 解析引擎 (全面寫入遭遇地點資料)
+    elements.form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const val = parseInt(elements.input.value);
+      if (val >= 1 && val <= MAX_POKEMON_ID) fetchPokemon(val);
+      else alert(`搜尋編號必須在 1 到 ${MAX_POKEMON_ID} 之間。`);
+    });
+
+    // API 解析引擎
     async function fetchAndParseFromPokeAPI(targetId) {
       const pkmnRes = await fetch(`https://pokeapi.co/api/v2/pokemon/${targetId}`, { cache: 'no-cache' });
       if (!pkmnRes.ok) throw new Error("API_NOT_FOUND");
@@ -676,31 +606,10 @@
       if (!speciesRes.ok) throw new Error("API_NOT_FOUND");
       const speciesData = await speciesRes.json();
 
-      // 追加：透過 GraphQL 同步取得棲息地資料 (升級：加入 pokemon_v2_location 大區域名稱)
       const encounterRes = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: `
-          query {
-            pokemon_v2_pokemon(where: {id: {_eq: ${targetId}}}) {
-              pokemon_v2_encounters {
-                pokemon_v2_version { name }
-                pokemon_v2_locationarea {
-                  pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
-                    name
-                    pokemon_v2_language { name }
-                  }
-                  pokemon_v2_location {
-                    pokemon_v2_locationnames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
-                      name
-                      pokemon_v2_language { name }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        `})
+        body: JSON.stringify({ query: `query { pokemon_v2_pokemon(where: {id: {_eq: ${targetId}}}) { pokemon_v2_encounters { pokemon_v2_version { name } pokemon_v2_locationarea { pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) { name pokemon_v2_language { name } } pokemon_v2_location { pokemon_v2_locationnames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) { name pokemon_v2_language { name } } } } } } }`})
       });
       let parsedEncounters = {};
       if (encounterRes.ok) {
@@ -713,20 +622,13 @@
       if (speciesData.names) {
         const hant = speciesData.names.find(n => n.language.name.toLowerCase() === "zh-hant" || n.language.url.includes("/4/"));
         const hans = speciesData.names.find(n => n.language.name.toLowerCase() === "zh-hans" || n.language.url.includes("/12/"));
-        if (hant) parsedName = hant.name;
-        else if (hans) parsedName = hans.name;
+        if (hant) parsedName = hant.name; else if (hans) parsedName = hans.name;
       }
-
-      if (!parsedName) {
-         throw new Error("無法從官方取得繁體中文譯名，已拒絕寫入資料庫！");
-      }
+      if (!parsedName) throw new Error("無法從官方取得繁體中文譯名，已拒絕寫入資料庫！");
 
       let finalName = parsedName;
       for (const suffix of FORM_SUFFIXES) {
-         if (pkmnData.name.includes(suffix.key)) {
-            finalName += suffix.val;
-            break;
-         }
+         if (pkmnData.name.includes(suffix.key)) { finalName += suffix.val; break; }
       }
       parsedName = finalName;
 
@@ -740,18 +642,11 @@
       const seenGames = new Set(); 
       let isFallback = false;
       
-      if (pkmnData.game_indices) {
-          pkmnData.game_indices.forEach(g => seenGames.add(g.version.name));
-      }
-      if (speciesData.flavor_text_entries) {
-          speciesData.flavor_text_entries.forEach(e => seenGames.add(e.version.name));
-      }
+      if (pkmnData.game_indices) pkmnData.game_indices.forEach(g => seenGames.add(g.version.name));
+      if (speciesData.flavor_text_entries) speciesData.flavor_text_entries.forEach(e => seenGames.add(e.version.name));
 
       let finalGamesArr = Array.from(seenGames);
-      if (speciesData.id === 25) { 
-          finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
-      }
-      
+      if (speciesData.id === 25) finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
       finalGamesArr = filterGamesByForm(finalGamesArr, pkmnData.name);
       finalGamesArr = [...new Set(finalGamesArr)];
 
@@ -777,21 +672,11 @@
           const vName = entry.version.name;
           if (!seenVersions.has(vName)) {
             seenVersions.add(vName);
-            flavorTexts.push({
-              version: vName,
-              text: fallbackMsg + entry.flavor_text.replace(/[\f\n\r]/g, ' ')
-            });
+            flavorTexts.push({ version: vName, text: fallbackMsg + entry.flavor_text.replace(/[\f\n\r]/g, ' ') });
           }
         });
       }
-      
-      if (flavorTexts.length === 0) {
-        flavorTexts.push({ version: "default", text: "暫無圖鑑介紹資料。" });
-        isFallback = true;
-      }
-
-      const parsedSprite = pkmnData.sprites?.versions?.['generation-ii']?.crystal?.front_default || pkmnData.sprites?.front_default || "";
-      const parsedShinySprite = pkmnData.sprites?.versions?.['generation-ii']?.crystal?.front_shiny || pkmnData.sprites?.front_shiny || "";
+      if (flavorTexts.length === 0) { flavorTexts.push({ version: "default", text: "暫無圖鑑介紹資料。" }); isFallback = true; }
 
       return {
         id: pkmnData.id || targetId,
@@ -800,44 +685,39 @@
         types: (pkmnData.types || []).map(t => t.type.name),
         height: pkmnData.height || 0,
         weight: pkmnData.weight || 0,
-        spriteUrl: parsedSprite,
-        shinySpriteUrl: parsedShinySprite,
+        spriteUrl: pkmnData.sprites?.versions?.['generation-ii']?.crystal?.front_default || pkmnData.sprites?.front_default || "",
+        shinySpriteUrl: pkmnData.sprites?.versions?.['generation-ii']?.crystal?.front_shiny || pkmnData.sprites?.front_shiny || "",
         varieties: varieties, 
         games: finalGamesArr, 
         encounters: parsedEncounters, 
         flavorText: flavorTexts[0]?.text || "暫無資料",
         flavorTexts: flavorTexts,
         isFallback: isFallback,
-        isEvolved: !!speciesData.evolves_from_species, // 新增：判斷是否為進化型態
+        isEvolved: !!speciesData.evolves_from_species,
         updatedAt: new Date().toISOString()
       };
     }
 
-    // 5. 查詢邏輯
+    // 取得資料
     async function fetchPokemon(searchId) {
-      if (!currentUser) return;
-      if (!searchId || searchId < 1) return;
-
+      if (!currentUser || !searchId || searchId < 1) return;
       currentPokemonId = searchId;
       elements.input.value = "";
-
       showView('loading');
       elements.dataSourceLabel.classList.add('hidden');
 
       try {
-        const docRef = doc(db, 'pokedex', String(searchId));
+        const docRef = doc(db, 'artifacts', fsAppId, 'public', 'data', 'pokedex', String(searchId));
         const docSnap = await getDoc(docRef);
 
         if (docSnap.exists()) {
           const data = docSnap.data();
-          
-          // 檢查是否缺乏 encounters 或 isEvolved 欄位 (強制升級檢查)
           const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId || !data.games || !data.encounters || !data.hasOwnProperty('isEvolved');
           const hasChineseName = /[\u4e00-\u9fa5]/.test(data.name);
           const isIncorrectLanguage = !hasChineseName && data.isFallback !== true;
 
           if (needsUpgrade || isIncorrectLanguage) {
-            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 需要補齊資料，強制淨化更新...`);
+            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 需更新資料...`);
             const cleanData = await fetchAndParseFromPokeAPI(searchId);
             await setDoc(docRef, cleanData);
             renderPokemon(cleanData);
@@ -854,99 +734,38 @@
         }
         showView('pokemon');
       } catch (err) {
-        console.error("Fetch/Database Error:", err);
-        if (err.code === 'permission-denied' || (err.message && err.message.includes('permissions'))) {
-          showView('error', "Firestore 權限不足而被拒絕讀寫！", true);
-        } else {
-          showView('error', err.message || "讀取失敗，請確認網路狀態。");
-        }
+        console.error(err);
+        showView('error', err.code === 'permission-denied' ? "Firestore 權限不足！" : "讀取失敗，請確認網路狀態。", err.code === 'permission-denied');
       }
     }
 
-    // 6. GraphQL 高速資料庫升級作業
+    // 批次升級工具
     elements.syncBtn.addEventListener('click', async () => {
       if (!currentUser || isSyncing) return;
-      
-      if (!confirm("即將開始「全圖鑑資料淨化」。\n系統將自動補齊「登場世代版本」，並清除錯放資料。確定要開始嗎？")) return;
+      if (!confirm("即將開始「全圖鑑資料淨化」。\n確定要開始嗎？")) return;
 
       isSyncing = true;
       elements.syncBtn.classList.add('hidden');
       elements.syncContainer.classList.remove('hidden');
-      elements.syncStatusText.innerText = "向官方伺服器請求最新跨世代資料 (約 3-5 秒)...";
+      elements.syncStatusText.innerText = "向官方伺服器請求最新資料...";
       elements.syncPercentage.innerText = "0%";
       elements.syncBar.style.width = "0%";
 
       try {
         let pokemonList = [];
-        // 【核心修正】：將 200 筆的批次大幅縮小為 25 筆，避免 GraphQL 的節點數量上限(Node Limit) 導致棲息地陣列被官方截斷
         for (let offset = 0; offset <= 1025; offset += 25) {
           elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 25, 1025)} 筆)...`;
-          const query = `
-            query {
-              pokemon_v2_pokemon(limit: 25, offset: ${offset}) {
-                id
-                name
-                height
-                weight
-                pokemon_v2_pokemongameindices {
-                  pokemon_v2_version { name }
-                }
-                pokemon_v2_pokemontypes {
-                  pokemon_v2_type { name }
-                }
-                pokemon_v2_pokemonspecy {
-                  id
-                  evolves_from_species_id
-                  pokemon_v2_pokemons { id }
-                  pokemon_v2_pokemonspeciesnames {
-                    name
-                    pokemon_v2_language { name }
-                  }
-                  pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-hant", "zh-Hans", "zh-hans", "zh-tw", "ja", "ja-Hrkt", "en"]}}}) {
-                    flavor_text
-                    pokemon_v2_version { name }
-                    pokemon_v2_language { name }
-                  }
-                }
-                pokemon_v2_encounters {
-                  pokemon_v2_version { name }
-                  pokemon_v2_locationarea {
-                    pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
-                      name
-                      pokemon_v2_language { name }
-                    }
-                    pokemon_v2_location {
-                      pokemon_v2_locationnames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
-                        name
-                        pokemon_v2_language { name }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          `;
-
-          const response = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ query })
-          });
-
-          if (!response.ok) throw new Error(`GraphQL 伺服器拒絕連線 (狀態碼: ${response.status})`);
-          
+          const query = `query { pokemon_v2_pokemon(limit: 25, offset: ${offset}) { id name height weight pokemon_v2_pokemongameindices { pokemon_v2_version { name } } pokemon_v2_pokemontypes { pokemon_v2_type { name } } pokemon_v2_pokemonspecy { id evolves_from_species_id pokemon_v2_pokemons { id } pokemon_v2_pokemonspeciesnames { name pokemon_v2_language { name } } pokemon_v2_pokemonspeciesflavortexts(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-hant", "zh-Hans", "zh-hans", "zh-tw", "ja", "ja-Hrkt", "en"]}}}) { flavor_text pokemon_v2_version { name } pokemon_v2_language { name } } } pokemon_v2_encounters { pokemon_v2_version { name } pokemon_v2_locationarea { pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) { name pokemon_v2_language { name } } pokemon_v2_location { pokemon_v2_locationnames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) { name pokemon_v2_language { name } } } } } } }`;
+          const response = await fetch('https://beta.pokeapi.co/graphql/v1beta', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query }) });
+          if (!response.ok) throw new Error(`GraphQL 伺服器拒絕連線`);
           const json = await response.json();
-          if (json.errors) throw new Error("GraphQL 查詢錯誤: " + json.errors[0].message);
-          
+          if (json.errors) throw new Error(json.errors[0].message);
           pokemonList = pokemonList.concat(json.data.pokemon_v2_pokemon);
-          
           await new Promise(resolve => setTimeout(resolve, 300));
         }
 
         elements.syncStatusText.innerText = "資料請求完成！開始淨化 Firebase 資料庫...";
-
         let successCount = 0;
-        let skippedCount = 0;
         
         for (const p of pokemonList) {
           let parsedName = null;
@@ -954,22 +773,18 @@
           const seenVersions = new Set();
           const seenGames = new Set(); 
           
-          if (p.pokemon_v2_pokemongameindices) {
-              p.pokemon_v2_pokemongameindices.forEach(g => seenGames.add(g.pokemon_v2_version?.name));
-          }
+          if (p.pokemon_v2_pokemongameindices) p.pokemon_v2_pokemongameindices.forEach(g => seenGames.add(g.pokemon_v2_version?.name));
 
           const specy = p.pokemon_v2_pokemonspecy;
           const speciesId = specy?.id || p.id;
           const varieties = specy?.pokemon_v2_pokemons?.map(v => v.id) || [p.id];
           let isFallback = false;
-          let isEvolved = !!specy?.evolves_from_species_id; // 新增：擷取進化關聯
           
           if (specy) {
             const names = specy.pokemon_v2_pokemonspeciesnames || [];
             const hant = names.find(n => n.pokemon_v2_language.name.toLowerCase() === "zh-hant");
             const hans = names.find(n => n.pokemon_v2_language.name.toLowerCase() === "zh-hans");
-            if (hant) parsedName = hant.name;
-            else if (hans) parsedName = hans.name;
+            if (hant) parsedName = hant.name; else if (hans) parsedName = hans.name;
 
             const allFlavors = specy.pokemon_v2_pokemonspeciesflavortexts || [];
             allFlavors.forEach(f => seenGames.add(f.pokemon_v2_version?.name));
@@ -978,113 +793,60 @@
             const jaFlavors = allFlavors.filter(f => ["ja", "ja-hrkt"].includes(f.pokemon_v2_language.name.toLowerCase()));
             const enFlavors = allFlavors.filter(f => f.pokemon_v2_language.name.toLowerCase() === "en");
 
-            let targetFlavors = cnFlavors;
-            let fallbackMsg = "";
-            
-            if (targetFlavors.length === 0 && jaFlavors.length > 0) {
-                targetFlavors = jaFlavors;
-                fallbackMsg = "[無官方中文，顯示日文] ";
-                isFallback = true;
-            } else if (targetFlavors.length === 0 && enFlavors.length > 0) {
-                targetFlavors = enFlavors;
-                fallbackMsg = "[無官方中日文，顯示英文] ";
-                isFallback = true;
-            }
+            let targetFlavors = cnFlavors.length > 0 ? cnFlavors : (jaFlavors.length > 0 ? jaFlavors : enFlavors);
+            let fallbackMsg = cnFlavors.length === 0 ? (jaFlavors.length > 0 ? "[無官方中文，顯示日文] " : "[無官方中日文，顯示英文] ") : "";
+            isFallback = cnFlavors.length === 0;
 
             let finalGamesArr = Array.from(seenGames);
-            if (speciesId === 25) {
-                finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
-            }
+            if (speciesId === 25) finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
             finalGamesArr = filterGamesByForm(finalGamesArr, parsedName || p.name);
             finalGamesArr = [...new Set(finalGamesArr)];
 
             targetFlavors = targetFlavors.filter(f => finalGamesArr.includes(f.pokemon_v2_version?.name));
-
             targetFlavors.forEach(f => {
               const vName = f.pokemon_v2_version?.name || "default";
               if (!seenVersions.has(vName)) {
                 seenVersions.add(vName);
-                flavorTexts.push({
-                  version: vName,
-                  text: fallbackMsg + f.flavor_text.replace(/[\f\n\r]/g, ' ')
-                });
+                flavorTexts.push({ version: vName, text: fallbackMsg + f.flavor_text.replace(/[\f\n\r]/g, ' ') });
               }
             });
           }
 
-          if (flavorTexts.length === 0) {
-             flavorTexts.push({ version: "default", text: "暫無圖鑑介紹資料。" });
-             isFallback = true;
-          }
-
-          if (!parsedName) {
-            console.warn(`ID ${p.id} 缺乏中文譯名，已跳過更新以保護資料庫。`);
-            skippedCount++;
-            continue;
-          }
+          if (flavorTexts.length === 0) { flavorTexts.push({ version: "default", text: "暫無圖鑑介紹資料。" }); isFallback = true; }
+          if (!parsedName) continue;
 
           let finalName = parsedName;
-          for (const suffix of FORM_SUFFIXES) {
-             if (p.name.includes(suffix.key)) {
-                finalName += suffix.val;
-                break;
-             }
-          }
+          for (const suffix of FORM_SUFFIXES) { if (p.name.includes(suffix.key)) { finalName += suffix.val; break; } }
           parsedName = finalName;
 
           let finalGamesArr = Array.from(seenGames);
-          if (speciesId === 25) {
-              finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
-          }
+          if (speciesId === 25) finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
           finalGamesArr = filterGamesByForm(finalGamesArr, p.name);
           finalGamesArr = [...new Set(finalGamesArr)];
 
-          // 解析這隻寶可夢的棲息地資料
-          const rawEncounters = p.pokemon_v2_encounters || [];
-          const parsedEncounters = parseEncounters(rawEncounters);
-
-          const spriteUrl = p.id <= 251 
-            ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/${p.id}.png`
-            : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`;
-            
-          const shinyUrl = p.id <= 251 
-            ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/shiny/${p.id}.png`
-            : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${p.id}.png`;
+          const parsedEncounters = parseEncounters(p.pokemon_v2_encounters || []);
 
           const cleanData = {
-            id: p.id,
-            speciesId: speciesId,
-            name: parsedName,
+            id: p.id, speciesId, name: parsedName,
             types: p.pokemon_v2_pokemontypes.map(t => t.pokemon_v2_type.name),
-            height: p.height || 0,
-            weight: p.weight || 0,
-            spriteUrl: spriteUrl,
-            shinySpriteUrl: shinyUrl,
-            varieties: varieties, 
-            games: finalGamesArr, 
-            encounters: parsedEncounters, 
-            flavorText: flavorTexts[0]?.text || "暫無資料",
-            flavorTexts: flavorTexts,
-            isFallback: isFallback,
-            isEvolved: isEvolved, // 新增：存入 Firebase 供判斷使用
-            updatedAt: new Date().toISOString()
+            height: p.height || 0, weight: p.weight || 0,
+            spriteUrl: p.id <= 251 ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/${p.id}.png` : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${p.id}.png`,
+            shinySpriteUrl: p.id <= 251 ? `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/versions/generation-ii/crystal/shiny/${p.id}.png` : `https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/shiny/${p.id}.png`,
+            varieties, games: finalGamesArr, encounters: parsedEncounters, 
+            flavorText: flavorTexts[0]?.text || "暫無資料", flavorTexts, isFallback,
+            isEvolved: !!specy?.evolves_from_species_id, updatedAt: new Date().toISOString()
           };
 
-          const docRef = doc(db, 'pokedex', String(p.id));
-          await setDoc(docRef, cleanData);
-
+          await setDoc(doc(db, 'artifacts', fsAppId, 'public', 'data', 'pokedex', String(p.id)), cleanData);
           successCount++;
-          const percent = Math.floor(((successCount + skippedCount) / 1025) * 100);
+          const percent = Math.floor((successCount / 1025) * 100);
           elements.syncPercentage.innerText = `${percent}%`;
           elements.syncBar.style.width = `${percent}%`;
         }
 
-        alert(`✅ 資料淨化升級完成！\n成功同步 ${successCount} 筆最新資料！`);
-        
+        alert(`✅ 資料淨化升級完成！成功同步 ${successCount} 筆最新資料！`);
         fetchPokemon(currentPokemonId);
-
       } catch (err) {
-        console.error("Bulk Sync Error:", err);
         alert(`更新發生錯誤並中斷！\n\n原因：${err.message}`);
       } finally {
         isSyncing = false;
@@ -1093,32 +855,15 @@
       }
     });
 
-    // 7. 表單送出監聽
-    elements.form.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const val = parseInt(elements.input.value);
-      if (val >= 1 && val <= MAX_POKEMON_ID) {
-        fetchPokemon(val);
-      } else {
-        alert(`搜尋編號必須在 1 到 ${MAX_POKEMON_ID} 之間。`);
-      }
-    });
-
-    // 8. 系統認證與初始化
+    // 系統認證
     const initAuth = async () => {
       try {
         if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-          try {
-            await signInWithCustomToken(auth, __initial_auth_token);
-          } catch (tokenErr) {
-            console.warn("Token 不匹配，正在切換至匿名登入...", tokenErr);
-            await signInAnonymously(auth);
-          }
+          await signInWithCustomToken(auth, __initial_auth_token);
         } else {
           await signInAnonymously(auth);
         }
       } catch (err) {
-        console.error("Auth Error:", err);
         showView('error', "系統認證失敗，無法連接雲端資料庫。");
       }
     };
@@ -1126,11 +871,8 @@
 
     onAuthStateChanged(auth, (user) => {
       currentUser = user;
-      if (user) {
-        fetchPokemon(25);
-      }
+      if (user) fetchPokemon(25);
     });
-
   </script>
 </body>
 </html>
