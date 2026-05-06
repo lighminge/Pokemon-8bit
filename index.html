@@ -859,7 +859,6 @@
         let pokemonList = [];
         for (let offset = 0; offset <= 1025; offset += 200) {
           elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 200, 1025)} 筆)...`;
-          // 【核心升級】：將 encounters 一併加入批次打包查詢，存入資料庫
           const query = `
             query {
               pokemon_v2_pokemon(limit: 200, offset: ${offset}) {
