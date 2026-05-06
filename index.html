@@ -78,7 +78,8 @@
   <div class="flex flex-col md:flex-row w-full max-w-6xl mx-auto drop-shadow-[0_25px_50px_rgba(0,0,0,0.6)] mb-12">
 
     <!-- ================== 左半部 (經典主螢幕資料區) ================== -->
-    <div class="w-full md:w-[60%] bg-[#ef4444] rounded-t-[40px] md:rounded-t-none md:rounded-l-[40px] p-4 md:p-8 border-b-[16px] md:border-r-[8px] border-[#991b1b] relative z-10 flex flex-col min-h-[600px]">
+    <!-- 修正：將圖鑑整體高度再次加長至 h-[1200px] md:h-[1000px] -->
+    <div class="w-full md:w-[60%] bg-[#ef4444] rounded-t-[40px] md:rounded-t-none md:rounded-l-[40px] p-4 md:p-8 border-b-[16px] md:border-r-[8px] border-[#991b1b] relative z-10 flex flex-col h-[1200px] md:h-[1000px]">
        
        <!-- 左上角經典指示燈 -->
        <div class="flex items-start gap-4 mb-6">
@@ -91,18 +92,19 @@
        </div>
 
        <!-- 左側螢幕容器 (內嵌原有的視圖系統) -->
-       <div class="bg-[#f8fafc] rounded-2xl p-4 md:p-6 border-[12px] border-b-[40px] border-[#334155] shadow-inner flex-grow flex flex-col relative">
+       <!-- 修正：加入 overflow-hidden 確保任何內部資料都絕對不會突破白框底部！ -->
+       <div class="bg-[#f8fafc] rounded-2xl p-4 md:p-6 border-[12px] border-b-[40px] border-[#334155] shadow-inner flex-1 flex flex-col relative min-h-0 overflow-hidden">
           
           <div id="data-source-label" class="absolute top-2 right-2 flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-wider hidden z-20"></div>
 
           <!-- 載入中 -->
-          <div id="view-loading" class="flex-grow flex flex-col items-center justify-center gap-4 hidden">
+          <div id="view-loading" class="flex-1 flex flex-col items-center justify-center gap-4 hidden">
             <i data-lucide="loader-2" class="w-12 h-12 animate-spin text-slate-400"></i>
             <p class="text-slate-500 font-bold">資料庫連線中...</p>
           </div>
 
           <!-- 錯誤 -->
-          <div id="view-error" class="flex-grow flex flex-col items-center justify-center text-red-600 font-black text-xl py-10 text-center hidden px-2">
+          <div id="view-error" class="flex-1 flex flex-col items-center justify-center text-red-600 font-black text-xl py-10 text-center hidden px-2">
             <span id="error-text">發生錯誤</span>
             <div id="error-hint" class="text-sm font-normal text-slate-300 mt-6 bg-slate-800 p-4 rounded-lg text-left hidden w-full shadow-inner border border-slate-700">
               <p class="mb-2 text-yellow-400 font-bold flex items-center gap-1"><i data-lucide="info" class="w-4 h-4"></i> 權限問題：請檢查 Firestore Rules。</p>
@@ -110,32 +112,34 @@
           </div>
 
           <!-- 寶可夢主資料區 -->
-          <div id="view-pokemon" class="animate-fade-in flex-grow flex flex-col hidden">
+          <!-- 修正：加入 overflow-y-auto 與 pr-2 讓資料過多時可以在白框「內部」捲動 -->
+          <div id="view-pokemon" class="animate-fade-in flex-1 flex flex-col min-h-0 hidden overflow-y-auto custom-scrollbar pr-2 pb-1">
             
             <!-- 名稱列 -->
-            <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-4 flex justify-between items-center px-4 shadow-md gap-2">
+            <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-4 flex justify-between items-center px-4 shadow-md gap-2 flex-shrink-0">
               <span id="poke-id" class="text-lg md:text-xl font-black font-mono text-cyan-300 bg-slate-800 px-3 py-1 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.2)] border border-cyan-700/50 tracking-wider flex-shrink-0"></span>
               <span id="poke-name" class="text-lg md:text-2xl font-black text-yellow-400 tracking-wide text-right break-words leading-tight"></span>
             </div>
 
             <!-- 圖片區塊 -->
-            <div class="flex justify-center mb-4 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-48 items-center relative overflow-hidden">
+            <div class="flex justify-center mb-4 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-56 flex-shrink-0 items-center relative overflow-hidden">
               <button id="btn-regional" class="absolute top-2 left-2 z-20 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow border border-indigo-800 hover:bg-indigo-500 active:scale-95 transition-all hidden flex items-center gap-1 cursor-pointer" title="點擊切換不同型態">
                 <i data-lucide="refresh-cw" class="w-3 h-3"></i> 切換型態
               </button>
               <button id="btn-shiny" class="absolute top-2 right-2 z-20 bg-slate-800 text-yellow-400 p-2 rounded-full border-2 border-slate-600 hover:bg-slate-700 active:scale-95 transition-all hidden" title="切換色違">
                 <i data-lucide="sparkles" class="w-4 h-4"></i>
               </button>
-              <img id="poke-sprite" src="" alt="pokemon" class="w-48 h-48 pixelated drop-shadow-md z-10 transition-transform" />
+              <!-- 修正：放大圖片本體並設定 object-contain 確保完整顯示比例 -->
+              <img id="poke-sprite" src="" alt="pokemon" class="w-52 h-52 object-contain pixelated drop-shadow-md z-10 transition-transform" />
               <span id="poke-sprite-fallback" class="text-slate-400 font-bold hidden z-10">無圖像資料</span>
               <div class="absolute w-full h-1/2 bg-slate-100 bottom-0 z-0"></div>
             </div>
 
             <!-- 屬性 -->
-            <div id="poke-types" class="flex justify-center gap-3 mb-4"></div>
+            <div id="poke-types" class="flex justify-center gap-3 mb-4 flex-shrink-0"></div>
 
             <!-- 數值 -->
-            <div class="grid grid-cols-2 gap-4 mb-4">
+            <div class="grid grid-cols-2 gap-4 mb-4 flex-shrink-0">
               <div class="bg-slate-100 p-2 rounded-xl flex items-center justify-center gap-2 border-2 border-slate-200">
                 <i data-lucide="thermometer" class="text-slate-600 w-4 h-4"></i>
                 <span id="poke-height" class="text-base font-black text-slate-800"></span>
@@ -147,22 +151,25 @@
             </div>
 
             <!-- 登場世代與版本 -->
-            <div class="bg-slate-100 p-3 rounded-xl border-2 border-slate-200 mb-4">
+            <div class="bg-slate-100 p-3 rounded-xl border-2 border-slate-200 mb-3 flex-shrink-0">
               <div class="text-[10px] text-slate-500 font-black uppercase flex items-center gap-1 mb-2">
                 <i data-lucide="gamepad-2" class="w-4 h-4 text-slate-400"></i> 登場版本
               </div>
-              <div id="poke-games" class="flex flex-wrap gap-1.5 max-h-[90px] overflow-y-auto custom-scrollbar pr-1 pb-1"></div>
+              <div id="poke-games" class="flex flex-wrap gap-1.5 max-h-[110px] overflow-y-auto custom-scrollbar pr-1 pb-1"></div>
             </div>
 
             <!-- 圖鑑說明 (跨世代選單) -->
-            <div class="bg-[#1e293b] p-3 rounded-xl border-l-[8px] border-yellow-400 flex-grow shadow-lg flex flex-col relative min-h-[90px]">
-              <div class="flex justify-between items-center mb-1 border-b border-slate-700 pb-1">
+            <!-- 修正：移除 flex-shrink-0 強制擠壓，改以 flex-1 自動填滿並設定合理的 min-h-[130px]，讓它完美服貼在白框內 -->
+            <div class="bg-[#1e293b] p-3 md:p-4 rounded-xl border-l-[8px] border-yellow-400 flex-1 shadow-lg flex flex-col relative min-h-[130px]">
+              <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2 flex-shrink-0">
                 <span class="text-[10px] text-yellow-400 font-bold tracking-widest flex items-center gap-1">
                    <i data-lucide="book-open" class="w-3 h-3"></i>圖鑑檔案
                 </span>
                 <select id="flavor-version-select" class="bg-slate-800 text-yellow-400 text-[10px] font-bold outline-none border border-slate-600 rounded p-1 cursor-pointer hover:bg-slate-700 transition-colors max-w-[120px]"></select>
               </div>
-              <p id="poke-flavor" class="text-white text-xs leading-relaxed font-bold mt-1 overflow-y-auto custom-scrollbar pr-1"></p>
+              <div class="flex-1 min-h-0 overflow-y-auto custom-scrollbar pr-2 mt-1 pb-4">
+                <p id="poke-flavor" class="text-white text-[13px] md:text-sm leading-relaxed font-bold tracking-wide"></p>
+              </div>
             </div>
           </div>
        </div>
@@ -178,11 +185,12 @@
     </div>
 
     <!-- ================== 右半部 (棲息地與導覽按鈕區) ================== -->
-    <div class="w-full md:flex-1 bg-[#ef4444] rounded-b-[40px] md:rounded-b-none md:rounded-r-[40px] p-4 md:p-8 border-b-[16px] md:border-l-[8px] border-[#991b1b] relative z-10 flex flex-col min-h-[600px] justify-between">
+    <!-- 修正：同步加大右側高度為 h-[1200px] md:h-[1000px] -->
+    <div class="w-full md:flex-1 bg-[#ef4444] rounded-b-[40px] md:rounded-b-none md:rounded-r-[40px] p-4 md:p-8 border-b-[16px] md:border-l-[8px] border-[#991b1b] relative z-10 flex flex-col h-[1200px] md:h-[1000px] justify-between">
        
        <!-- 頂部黑螢幕：棲息地資料 -->
-       <div>
-         <div class="bg-slate-900 w-full h-40 rounded-lg shadow-[inset_0_5px_15px_rgba(0,0,0,0.8)] border-[6px] border-slate-800 p-3 flex flex-col mb-4">
+       <div class="flex flex-col flex-1 min-h-0">
+         <div class="bg-slate-900 w-full h-40 flex-shrink-0 rounded-lg shadow-[inset_0_5px_15px_rgba(0,0,0,0.8)] border-[6px] border-slate-800 p-3 flex flex-col mb-4">
             <div class="text-[10px] text-slate-400 border-b border-slate-700 pb-1 mb-2 font-black flex justify-between">
                 <span>📍 棲息地 (取得方式)</span>
                 <span id="encounter-version-label" class="text-yellow-400 font-mono">請選擇版本</span>
@@ -193,13 +201,16 @@
          </div>
 
          <!-- 藍色矩陣按鈕 (版本選擇器) -->
-         <div id="version-btn-grid" class="grid grid-cols-4 md:grid-cols-5 gap-1.5 mb-6 max-h-[120px] overflow-y-auto custom-scrollbar p-1">
-            <!-- 動態生成藍色版本按鈕 -->
+         <!-- 修正：因為機身變長，所以這裡的按鈕顯示區 max-h 也能擴展得更大了，方便一次看更多 -->
+         <div class="flex-1 overflow-y-auto custom-scrollbar p-1 mb-3 max-h-[360px] md:max-h-[400px]">
+           <div id="version-btn-grid" class="grid grid-cols-4 md:grid-cols-5 gap-1.5">
+              <!-- 動態生成藍色版本按鈕 -->
+           </div>
          </div>
        </div>
 
        <!-- 底部實體按鈕群 -->
-       <div class="mt-auto pt-8 md:mb-[180px]">
+       <div class="mt-auto pt-4 flex-shrink-0">
          <!-- 小紅燈 與 橫槓裝飾 -->
          <div class="flex items-center gap-2 mb-3 px-2">
            <div class="w-3 h-3 rounded-full bg-red-600 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"></div>
@@ -478,15 +489,19 @@
       }).join('');
 
       if (data.games && data.games.length > 0) {
-        elements.pokeGames.innerHTML = data.games.map(v => {
+        // 修正：將左側的登場版本標籤，依照發售順序 (由小到大) 進行排序
+        const sortedGames = [...data.games].sort((a, b) => (VERSION_SORT_ORDER[a] || 999) - (VERSION_SORT_ORDER[b] || 999));
+        elements.pokeGames.innerHTML = sortedGames.map(v => {
           const vName = VERSION_MAP[v] || v;
-          return `<span class="bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm border border-slate-400 whitespace-nowrap">${vName}</span>`;
+          return `<span data-version="${v}" class="game-tag bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm border border-slate-400 whitespace-nowrap transition-all duration-300">${vName}</span>`;
         }).join('');
       } else {
         elements.pokeGames.innerHTML = `<span class="text-slate-400 text-[10px] font-bold">暫無資料</span>`;
       }
 
       if (data.flavorTexts && data.flavorTexts.length > 0) {
+        // 修正：一併將圖鑑檔案的下拉選單依照發售順序排序
+        data.flavorTexts.sort((a, b) => (VERSION_SORT_ORDER[a.version] || 999) - (VERSION_SORT_ORDER[b.version] || 999));
         elements.flavorSelect.innerHTML = data.flavorTexts.map((f, idx) => {
           const vName = VERSION_MAP[f.version] || f.version;
           return `<option value="${idx}">${vName}</option>`;
@@ -504,15 +519,12 @@
       elements.versionBtnGrid.innerHTML = '';
       
       const encounterMap = data.encounters || {};
-      const versions = Object.keys(encounterMap);
+      // 核心修正：右側藍色按鈕全面改以「有登場的遊戲版本 (data.games)」為基準產生，不再只產生有野外遇見紀錄的版本！
+      const versions = [...(data.games || [])];
       versions.sort((a, b) => (VERSION_SORT_ORDER[a] || 999) - (VERSION_SORT_ORDER[b] || 999));
 
       if (versions.length === 0) {
-         if (data.isEvolved) {
-             elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-2 px-2"><span class="text-yellow-600 font-black text-sm">【 這是進化型態寶可夢 】</span><span class="leading-relaxed text-xs">多數版本無法在野外直接遇見。<br>💡 請搜尋其「退化型態」來尋找棲息地，並透過等級提升或道具進化。</span></li>`;
-         } else {
-             elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-1 px-2"><span class="text-yellow-600 font-black">無野外遇見紀錄</span><span class="text-[10px]">可能為孵蛋、配佈、NPC 贈送或尚未建檔。</span></li>`;
-         }
+         elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-1 px-2"><span class="text-yellow-600 font-black">無紀錄</span></li>`;
          elements.encounterVersionLabel.innerText = '無版本可選';
       } else {
          versions.forEach((v, index) => {
@@ -529,7 +541,17 @@
                
                elements.encounterVersionLabel.innerText = `【${VERSION_MAP[v] || v}】`;
                const locs = encounterMap[v] || [];
-               elements.encounterList.innerHTML = locs.map(l => `<li class="border-b border-slate-800 pb-1.5"><span class="mr-1">🔹</span>${l}</li>`).join('');
+               
+               // 核心修正：判斷此版本是否有野外棲息地，若無則顯示客製化提示
+               if (locs.length > 0) {
+                   elements.encounterList.innerHTML = locs.map(l => `<li class="border-b border-slate-800 pb-1.5"><span class="mr-1">🔹</span>${l}</li>`).join('');
+               } else {
+                   if (data.isEvolved) {
+                       elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-2 px-2"><span class="text-yellow-600 font-black text-sm">【 這是進化型態 】</span><span class="leading-relaxed text-[10px]">此版本無法在野外直接遇見。<br>💡 請搜尋其「退化型態」尋找棲息地，並透過等級提升或進化石取得。</span></li>`;
+                   } else {
+                       elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-1 px-2"><span class="text-yellow-600 font-black">此版本無野外遇見紀錄</span><span class="text-[10px]">可能為初始選擇、化石復活、NPC贈送、活動配佈或通訊交換。</span></li>`;
+                   }
+               }
 
                // 連動左側說明
                if (currentPokemonData && currentPokemonData.flavorTexts) {
@@ -539,6 +561,18 @@
                        elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[matchIdx].text;
                    }
                }
+               
+               // 同步高亮左側的登場版本標籤
+               const gameTags = elements.pokeGames.querySelectorAll('.game-tag');
+               gameTags.forEach(tag => {
+                   if (tag.dataset.version === v) {
+                       tag.classList.remove('bg-slate-300', 'text-slate-700', 'border-slate-400');
+                       tag.classList.add('bg-yellow-400', 'text-slate-900', 'border-yellow-500', 'shadow-[0_0_8px_rgba(250,204,21,0.6)]', 'scale-105');
+                   } else {
+                       tag.classList.remove('bg-yellow-400', 'text-slate-900', 'border-yellow-500', 'shadow-[0_0_8px_rgba(250,204,21,0.6)]', 'scale-105');
+                       tag.classList.add('bg-slate-300', 'text-slate-700', 'border-slate-400');
+                   }
+               });
             };
             elements.versionBtnGrid.appendChild(btn);
             if (index === 0) btn.click();
@@ -576,7 +610,20 @@
 
     elements.flavorSelect.addEventListener('change', (e) => {
       if (!currentPokemonData || !currentPokemonData.flavorTexts) return;
-      elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[e.target.value].text;
+      const selectedFlavor = currentPokemonData.flavorTexts[e.target.value];
+      elements.pokeFlavor.innerText = selectedFlavor.text;
+      
+      // 下拉選單切換時，同步高亮對應的登場版本標籤
+      const gameTags = elements.pokeGames.querySelectorAll('.game-tag');
+      gameTags.forEach(tag => {
+          if (tag.dataset.version === selectedFlavor.version) {
+              tag.classList.remove('bg-slate-300', 'text-slate-700', 'border-slate-400');
+              tag.classList.add('bg-yellow-400', 'text-slate-900', 'border-yellow-500', 'shadow-[0_0_8px_rgba(250,204,21,0.6)]', 'scale-105');
+          } else {
+              tag.classList.remove('bg-yellow-400', 'text-slate-900', 'border-yellow-500', 'shadow-[0_0_8px_rgba(250,204,21,0.6)]', 'scale-105');
+              tag.classList.add('bg-slate-300', 'text-slate-700', 'border-slate-400');
+          }
+      });
     });
 
     elements.btnPrev.addEventListener('click', () => {
