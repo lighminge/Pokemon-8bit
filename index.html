@@ -486,16 +486,20 @@
         if (!vName) return;
 
         const areaNames = enc.pokemon_v2_locationarea?.pokemon_v2_locationareanames || [];
-        const hant = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hant');
-        const tw = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-tw');
-        const hans = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hans');
-        const ja = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja');
-        const jahrkt = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja-hrkt');
+        // 新增 ?. 安全防護與英文備援
+        const hant = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-hant');
+        const tw = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-tw');
+        const hans = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-hans');
+        const ja = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'ja');
+        const jahrkt = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'ja-hrkt');
+        const en = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'en');
 
         let locName = hant?.name || tw?.name || hans?.name;
         if (!locName) {
           if (ja || jahrkt) {
              locName = "[日文] " + (ja?.name || jahrkt?.name);
+          } else if (en) {
+             locName = "[英文] " + en?.name;
           } else {
              locName = "未知區域";
           }
@@ -662,7 +666,7 @@
       if (!speciesRes.ok) throw new Error("API_NOT_FOUND");
       const speciesData = await speciesRes.json();
 
-      // 追加：透過 GraphQL 同步取得棲息地資料
+      // 追加：透過 GraphQL 同步取得棲息地資料 (加入 en 英文備援)
       const encounterRes = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -672,7 +676,7 @@
               pokemon_v2_encounters {
                 pokemon_v2_version { name }
                 pokemon_v2_locationarea {
-                  pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt"]}}}) {
+                  pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
                     name
                     pokemon_v2_language { name }
                   }
@@ -857,11 +861,12 @@
 
       try {
         let pokemonList = [];
-        for (let offset = 0; offset <= 1025; offset += 200) {
-          elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 200, 1025)} 筆)...`;
+        // 【核心修正】：將 200 筆的批次大幅縮小為 25 筆，避免 GraphQL 的節點數量上限(Node Limit) 導致棲息地陣列被官方截斷
+        for (let offset = 0; offset <= 1025; offset += 25) {
+          elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 25, 1025)} 筆)...`;
           const query = `
             query {
-              pokemon_v2_pokemon(limit: 200, offset: ${offset}) {
+              pokemon_v2_pokemon(limit: 25, offset: ${offset}) {
                 id
                 name
                 height
@@ -888,7 +893,7 @@
                 pokemon_v2_encounters {
                   pokemon_v2_version { name }
                   pokemon_v2_locationarea {
-                    pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt"]}}}) {
+                    pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
                       name
                       pokemon_v2_language { name }
                     }
