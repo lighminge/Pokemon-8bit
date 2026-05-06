@@ -35,19 +35,19 @@
       width: 4px;
     }
     .custom-scrollbar::-webkit-scrollbar-track {
-      background: #f1f5f9;
+      background: rgba(0,0,0,0.1);
       border-radius: 4px;
     }
     .custom-scrollbar::-webkit-scrollbar-thumb {
-      background: #cbd5e1;
+      background: rgba(255,255,255,0.3);
       border-radius: 4px;
     }
   </style>
 </head>
-<body class="min-h-screen bg-[#0f172a] flex flex-col items-center justify-center p-4 text-slate-100">
+<body class="min-h-screen bg-[#0f172a] flex flex-col items-center p-4 text-slate-100">
 
   <!-- 頂部標題 -->
-  <div class="mb-6 text-center">
+  <div class="mb-6 text-center mt-4">
     <h1 class="text-yellow-400 text-3xl font-black flex items-center justify-center gap-2 drop-shadow-md">
       <i data-lucide="zap" class="fill-yellow-400 w-8 h-8"></i>
       Pokemon 8bit版本圖鑑
@@ -59,7 +59,7 @@
   </div>
 
   <!-- 搜尋列 -->
-  <form id="searchForm" class="mb-8 w-full max-w-sm flex shadow-2xl">
+  <form id="searchForm" class="mb-8 w-full max-w-sm flex shadow-2xl z-20">
     <input
       id="searchInput"
       type="number"
@@ -74,154 +74,167 @@
     </button>
   </form>
 
-  <!-- 圖鑑機器本體 -->
-  <div class="relative w-full max-w-lg bg-[#ef4444] rounded-[40px] p-8 border-b-[16px] border-r-[16px] border-[#991b1b] shadow-2xl">
-    
-    <!-- 指示燈 -->
-    <div class="absolute top-6 left-10 flex gap-4">
-      <div class="w-16 h-16 bg-[#38bdf8] rounded-full border-8 border-white shadow-[0_0_20px_rgba(56,189,248,0.8)]"></div>
-      <div class="flex gap-2 pt-2">
-        <div id="indicator-cloud" class="w-4 h-4 rounded-full border-2 border-black/50 bg-red-400"></div>
-        <div id="indicator-api" class="w-4 h-4 rounded-full border-2 border-black/50 bg-yellow-600"></div>
-        <div class="w-4 h-4 bg-slate-400 rounded-full border-2 border-black/50"></div>
-      </div>
-    </div>
+  <!-- 全新雙螢幕圖鑑設計 (左：資料, 右：取得方式與控制) -->
+  <div class="flex flex-col md:flex-row w-full max-w-6xl mx-auto drop-shadow-[0_25px_50px_rgba(0,0,0,0.6)] mb-12">
 
-    <!-- 螢幕 -->
-    <div class="mt-16 bg-[#f8fafc] rounded-2xl p-5 border-[10px] border-[#334155] shadow-inner min-h-[460px] flex flex-col relative">
-      
-      <!-- 資料來源標籤 -->
-      <div id="data-source-label" class="absolute top-2 right-2 flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-wider hidden z-20">
-      </div>
-
-      <!-- 視圖：載入中 -->
-      <div id="view-loading" class="flex-grow flex flex-col items-center justify-center gap-4 hidden">
-        <i data-lucide="loader-2" class="w-12 h-12 animate-spin text-slate-400"></i>
-        <p class="text-slate-500 font-bold">資料庫連線中...</p>
-      </div>
-
-      <!-- 視圖：錯誤 -->
-      <div id="view-error" class="flex-grow flex flex-col items-center justify-center text-red-600 font-black text-xl py-10 text-center hidden px-2">
-        <span id="error-text">發生錯誤</span>
-        
-        <!-- 權限錯誤提示區塊 -->
-        <div id="error-hint" class="text-sm font-normal text-slate-300 mt-6 bg-slate-800 p-4 rounded-lg text-left hidden w-full shadow-inner border border-slate-700">
-          <p class="mb-2 text-yellow-400 font-bold flex items-center gap-1"><i data-lucide="info" class="w-4 h-4"></i> 如何修正權限問題：</p>
-          <p class="text-xs text-slate-400 mb-3 leading-relaxed">您的 Firebase 資料庫預設阻擋了讀寫。請依照以下步驟開放：</p>
-          <ol class="text-xs text-slate-300 list-decimal list-inside space-y-1 mb-3">
-            <li>進入 Firebase Console</li>
-            <li>點擊左側 <b>Firestore Database</b></li>
-            <li>切換到上方 <b>Rules (規則)</b> 分頁</li>
-            <li>將內容修改為以下程式碼並發佈：</li>
-          </ol>
-          <pre class="bg-black p-3 rounded text-emerald-400 font-mono text-[10px] overflow-x-auto">rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /{document=**} {
-      allow read, write: if true;
-    }
-  }
-}</pre>
-        </div>
-      </div>
-
-      <!-- 視圖：寶可夢資料 -->
-      <div id="view-pokemon" class="animate-fade-in flex-grow flex flex-col mt-4 hidden">
-        
-        <!-- 名稱列 (修正：顯示物種編號而非型態ID，並套用青色發光樣式) -->
-        <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-4 flex justify-between items-center px-5 shadow-md">
-          <span id="poke-id" class="text-xl md:text-2xl font-black font-mono text-cyan-300 bg-slate-800 px-3 py-1 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.2)] border border-cyan-700/50 tracking-wider"></span>
-          <span id="poke-name" class="text-3xl font-black text-yellow-400 tracking-wide"></span>
-        </div>
-
-        <!-- 圖片與新功能區塊 -->
-        <div class="flex justify-center mb-4 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-48 items-center relative overflow-hidden">
-          
-          <!-- 地區型態徽章 (可點擊切換的按鈕) -->
-          <button id="btn-regional" class="absolute top-2 left-2 z-20 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow border border-indigo-800 hover:bg-indigo-500 active:scale-95 transition-all hidden flex items-center gap-1 cursor-pointer" title="點擊切換不同型態">
-            <i data-lucide="refresh-cw" class="w-3 h-3"></i> 切換型態
-          </button>
-
-          <!-- 色違切換按鈕 -->
-          <button id="btn-shiny" class="absolute top-2 right-2 z-20 bg-slate-800 text-yellow-400 p-2 rounded-full border-2 border-slate-600 hover:bg-slate-700 active:scale-95 transition-all hidden" title="切換色違">
-            <i data-lucide="sparkles" class="w-4 h-4"></i>
-          </button>
-
-          <img id="poke-sprite" src="" alt="pokemon" class="w-48 h-48 pixelated drop-shadow-md z-10 transition-transform" />
-          <span id="poke-sprite-fallback" class="text-slate-400 font-bold hidden z-10">無圖像資料</span>
-          <div class="absolute w-full h-1/2 bg-slate-100 bottom-0 z-0"></div>
-        </div>
-
-        <!-- 屬性 -->
-        <div id="poke-types" class="flex justify-center gap-3 mb-4">
-           <!-- 動態生成屬性標籤 -->
-        </div>
-
-        <!-- 數值 -->
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <div class="bg-slate-100 p-2 rounded-xl flex items-center justify-center gap-3 border-2 border-slate-200">
-            <i data-lucide="thermometer" class="text-slate-600 w-4 h-4"></i>
-            <span id="poke-height" class="text-lg font-black text-slate-800"></span>
-          </div>
-          <div class="bg-slate-100 p-2 rounded-xl flex items-center justify-center gap-3 border-2 border-slate-200">
-            <i data-lucide="weight" class="text-slate-600 w-4 h-4"></i>
-            <span id="poke-weight" class="text-lg font-black text-slate-800"></span>
-          </div>
-        </div>
-
-        <!-- 登場世代與版本 -->
-        <div class="bg-slate-100 p-3 rounded-xl border-2 border-slate-200 mb-4">
-          <div class="text-[10px] text-slate-500 font-black uppercase flex items-center gap-1 mb-2">
-            <i data-lucide="gamepad-2" class="w-4 h-4 text-slate-400"></i> 登場版本
-          </div>
-          <div id="poke-games" class="flex flex-wrap gap-1.5 max-h-[90px] overflow-y-auto custom-scrollbar pr-1 pb-1">
-             <!-- 動態版本標籤填入 -->
-          </div>
-        </div>
-
-        <!-- 圖鑑說明 (跨世代選單) -->
-        <div class="bg-[#1e293b] p-4 rounded-xl border-l-[10px] border-yellow-400 flex-grow shadow-lg flex flex-col relative min-h-[100px]">
-          <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
-            <span class="text-xs text-yellow-400 font-bold tracking-widest flex items-center gap-1">
-               <i data-lucide="book-open" class="w-3 h-3"></i>圖鑑檔案
-            </span>
-            <select id="flavor-version-select" class="bg-slate-800 text-yellow-400 text-xs font-bold outline-none border border-slate-600 rounded p-1 cursor-pointer hover:bg-slate-700 transition-colors max-w-[150px]">
-               <!-- 動態版本選項 -->
-            </select>
-          </div>
-          <p id="poke-flavor" class="text-white text-[14px] leading-relaxed font-bold mt-1 overflow-y-auto custom-scrollbar pr-1">
-            <!-- 動態填入 -->
-          </p>
-        </div>
-      </div>
-    </div>
-
-    <!-- 底部裝飾與切換按鈕 -->
-    <div class="mt-10 flex justify-between items-center px-4">
-      <div class="w-24 h-24 bg-[#1e293b] rounded-full border-8 border-slate-900 shadow-xl relative flex items-center justify-center">
-         <div class="absolute w-14 h-4 bg-slate-700 rounded-sm"></div>
-         <div class="absolute w-4 h-14 bg-slate-700 rounded-sm"></div>
-      </div>
-      <div class="flex flex-col gap-6 items-end">
-         <div class="flex gap-4">
-            <!-- 上一隻按鈕 -->
-            <button id="btn-prev" class="w-12 h-12 bg-[#1e293b] rounded-xl border-b-8 border-black shadow-md flex items-center justify-center text-white hover:bg-slate-700 active:border-b-4 active:translate-y-1 transition-all">
-              <i data-lucide="chevron-left" class="w-8 h-8 text-yellow-400"></i>
-            </button>
-            <!-- 下一隻按鈕 -->
-            <button id="btn-next" class="w-12 h-12 bg-[#1e293b] rounded-xl border-b-8 border-black shadow-md flex items-center justify-center text-white hover:bg-slate-700 active:border-b-4 active:translate-y-1 transition-all">
-              <i data-lucide="chevron-right" class="w-8 h-8 text-yellow-400"></i>
-            </button>
+    <!-- ================== 左半部 (經典主螢幕資料區) ================== -->
+    <div class="w-full md:w-[60%] bg-[#ef4444] rounded-t-[40px] md:rounded-t-none md:rounded-l-[40px] p-4 md:p-8 border-b-[16px] md:border-r-[8px] border-[#991b1b] relative z-10 flex flex-col min-h-[600px]">
+       
+       <!-- 左上角經典指示燈 -->
+       <div class="flex items-start gap-4 mb-6">
+         <div class="w-16 h-16 bg-[#38bdf8] rounded-full border-[6px] border-white shadow-[0_0_20px_rgba(56,189,248,0.8)] flex-shrink-0"></div>
+         <div class="flex gap-2 pt-3">
+           <div id="indicator-cloud" class="w-4 h-4 rounded-full bg-red-500 border-2 border-black/50 shadow-inner transition-colors"></div>
+           <div id="indicator-api" class="w-4 h-4 rounded-full bg-yellow-600 border-2 border-black/50 shadow-inner transition-colors"></div>
+           <div class="w-4 h-4 rounded-full bg-green-500 border-2 border-black/50 shadow-inner"></div>
          </div>
-         <div class="w-36 h-6 bg-[#1e293b] rounded-full border-b-4 border-black"></div>
-      </div>
+       </div>
+
+       <!-- 左側螢幕容器 (內嵌原有的視圖系統) -->
+       <div class="bg-[#f8fafc] rounded-2xl p-4 md:p-6 border-[12px] border-b-[40px] border-[#334155] shadow-inner flex-grow flex flex-col relative">
+          
+          <div id="data-source-label" class="absolute top-2 right-2 flex items-center gap-1 text-[9px] font-black text-slate-400 uppercase tracking-wider hidden z-20"></div>
+
+          <!-- 載入中 -->
+          <div id="view-loading" class="flex-grow flex flex-col items-center justify-center gap-4 hidden">
+            <i data-lucide="loader-2" class="w-12 h-12 animate-spin text-slate-400"></i>
+            <p class="text-slate-500 font-bold">資料庫連線中...</p>
+          </div>
+
+          <!-- 錯誤 -->
+          <div id="view-error" class="flex-grow flex flex-col items-center justify-center text-red-600 font-black text-xl py-10 text-center hidden px-2">
+            <span id="error-text">發生錯誤</span>
+            <div id="error-hint" class="text-sm font-normal text-slate-300 mt-6 bg-slate-800 p-4 rounded-lg text-left hidden w-full shadow-inner border border-slate-700">
+              <p class="mb-2 text-yellow-400 font-bold flex items-center gap-1"><i data-lucide="info" class="w-4 h-4"></i> 權限問題：請檢查 Firestore Rules。</p>
+            </div>
+          </div>
+
+          <!-- 寶可夢主資料區 -->
+          <div id="view-pokemon" class="animate-fade-in flex-grow flex flex-col hidden">
+            
+            <!-- 名稱列 (修正：移除 truncate 避免被切斷，改為允許斷行) -->
+            <div class="bg-[#1e293b] text-white p-3 rounded-lg mb-4 flex justify-between items-center px-4 shadow-md gap-2">
+              <span id="poke-id" class="text-lg md:text-xl font-black font-mono text-cyan-300 bg-slate-800 px-3 py-1 rounded-xl shadow-[0_0_15px_rgba(34,211,238,0.2)] border border-cyan-700/50 tracking-wider flex-shrink-0"></span>
+              <span id="poke-name" class="text-lg md:text-2xl font-black text-yellow-400 tracking-wide text-right break-words leading-tight"></span>
+            </div>
+
+            <!-- 圖片與新功能區塊 -->
+            <div class="flex justify-center mb-4 bg-white rounded-xl border-4 border-slate-300 p-4 shadow-sm h-48 items-center relative overflow-hidden">
+              <button id="btn-regional" class="absolute top-2 left-2 z-20 bg-indigo-600 text-white text-[10px] font-bold px-2 py-1 rounded shadow border border-indigo-800 hover:bg-indigo-500 active:scale-95 transition-all hidden flex items-center gap-1 cursor-pointer" title="點擊切換不同型態">
+                <i data-lucide="refresh-cw" class="w-3 h-3"></i> 切換型態
+              </button>
+              <button id="btn-shiny" class="absolute top-2 right-2 z-20 bg-slate-800 text-yellow-400 p-2 rounded-full border-2 border-slate-600 hover:bg-slate-700 active:scale-95 transition-all hidden" title="切換色違">
+                <i data-lucide="sparkles" class="w-4 h-4"></i>
+              </button>
+              <img id="poke-sprite" src="" alt="pokemon" class="w-48 h-48 pixelated drop-shadow-md z-10 transition-transform" />
+              <span id="poke-sprite-fallback" class="text-slate-400 font-bold hidden z-10">無圖像資料</span>
+              <div class="absolute w-full h-1/2 bg-slate-100 bottom-0 z-0"></div>
+            </div>
+
+            <!-- 屬性 -->
+            <div id="poke-types" class="flex justify-center gap-3 mb-4"></div>
+
+            <!-- 數值 -->
+            <div class="grid grid-cols-2 gap-4 mb-4">
+              <div class="bg-slate-100 p-2 rounded-xl flex items-center justify-center gap-2 border-2 border-slate-200">
+                <i data-lucide="thermometer" class="text-slate-600 w-4 h-4"></i>
+                <span id="poke-height" class="text-base font-black text-slate-800"></span>
+              </div>
+              <div class="bg-slate-100 p-2 rounded-xl flex items-center justify-center gap-2 border-2 border-slate-200">
+                <i data-lucide="weight" class="text-slate-600 w-4 h-4"></i>
+                <span id="poke-weight" class="text-base font-black text-slate-800"></span>
+              </div>
+            </div>
+
+            <!-- 圖鑑說明 (跨世代選單) -->
+            <div class="bg-[#1e293b] p-3 rounded-xl border-l-[8px] border-yellow-400 flex-grow shadow-lg flex flex-col relative min-h-[90px]">
+              <div class="flex justify-between items-center mb-1 border-b border-slate-700 pb-1">
+                <span class="text-[10px] text-yellow-400 font-bold tracking-widest flex items-center gap-1">
+                   <i data-lucide="book-open" class="w-3 h-3"></i>圖鑑檔案
+                </span>
+                <select id="flavor-version-select" class="bg-slate-800 text-yellow-400 text-[10px] font-bold outline-none border border-slate-600 rounded p-1 cursor-pointer hover:bg-slate-700 transition-colors max-w-[120px]"></select>
+              </div>
+              <p id="poke-flavor" class="text-white text-xs leading-relaxed font-bold mt-1 overflow-y-auto custom-scrollbar pr-1"></p>
+            </div>
+          </div>
+       </div>
+    </div>
+
+    <!-- ================== 中間鉸鏈 (僅大螢幕顯示) ================== -->
+    <div class="hidden md:flex w-8 bg-[#dc2626] border-y-[16px] border-[#991b1b] flex-col justify-evenly shadow-[inset_10px_0_15px_rgba(0,0,0,0.3)] z-0">
+       <div class="h-1/5 border-b-[6px] border-[#991b1b]/60"></div>
+       <div class="h-1/5 border-b-[6px] border-[#991b1b]/60"></div>
+       <div class="h-1/5 border-b-[6px] border-[#991b1b]/60"></div>
+       <div class="h-1/5 border-b-[6px] border-[#991b1b]/60"></div>
+       <div class="h-1/5"></div>
+    </div>
+
+    <!-- ================== 右半部 (棲息地與導覽按鈕區) ================== -->
+    <div class="w-full md:flex-1 bg-[#ef4444] rounded-b-[40px] md:rounded-b-none md:rounded-r-[40px] p-4 md:p-8 border-b-[16px] md:border-l-[8px] border-[#991b1b] relative z-10 flex flex-col min-h-[600px] justify-between">
+       
+       <!-- 頂部黑螢幕：棲息地資料 -->
+       <div>
+         <div class="bg-slate-900 w-full h-40 rounded-lg shadow-[inset_0_5px_15px_rgba(0,0,0,0.8)] border-[6px] border-slate-800 p-3 flex flex-col mb-4">
+            <div class="text-[10px] text-slate-400 border-b border-slate-700 pb-1 mb-2 font-black flex justify-between">
+                <span>📍 棲息地 (取得方式)</span>
+                <span id="encounter-version-label" class="text-yellow-400 font-mono">請選擇版本</span>
+            </div>
+            <ul id="encounter-list" class="flex-grow overflow-y-auto custom-scrollbar text-emerald-400 font-mono text-xs space-y-1.5 pr-2">
+                <li class="text-slate-500 flex h-full items-center justify-center">等待讀取資料...</li>
+            </ul>
+         </div>
+
+         <!-- 藍色矩陣按鈕 (版本選擇器) -->
+         <div id="version-btn-grid" class="grid grid-cols-4 md:grid-cols-5 gap-1.5 mb-6 max-h-[120px] overflow-y-auto custom-scrollbar p-1">
+            <!-- 動態生成藍色版本按鈕 -->
+         </div>
+       </div>
+
+       <!-- 底部實體按鈕群 (完美還原相片配置，加上 md:mb-[180px] 將按鈕向上推擠對齊左側說明欄底部) -->
+       <div class="mt-auto pt-8 md:mb-[180px]">
+         
+         <!-- 小紅燈 與 橫槓裝飾 -->
+         <div class="flex items-center gap-2 mb-3 px-2">
+           <div class="w-3 h-3 rounded-full bg-red-600 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"></div>
+           <div class="w-3 h-3 rounded-full bg-red-600 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"></div>
+           <div class="flex-grow flex gap-3 justify-center pl-4">
+              <div class="w-8 h-1.5 bg-black/70 rounded-full shadow-inner"></div>
+              <div class="w-8 h-1.5 bg-black/70 rounded-full shadow-inner"></div>
+           </div>
+         </div>
+
+         <!-- 白色長條 與 黃色按鈕 -->
+         <div class="flex gap-4 items-center mb-6 px-2">
+           <div class="flex">
+             <div class="w-10 h-6 bg-white rounded-l-sm shadow-md border-b-[3px] border-slate-300 border-r border-slate-200"></div>
+             <div class="w-10 h-6 bg-white rounded-r-sm shadow-md border-b-[3px] border-slate-300"></div>
+           </div>
+           <div class="w-8 h-8 rounded-full bg-yellow-400 shadow-md ml-auto border-b-[4px] border-yellow-600 active:border-b-0 active:translate-y-1 transition-all"></div>
+         </div>
+
+         <!-- 最底部兩顆深藍色大按鈕 (上一隻 / 下一隻) -->
+         <div class="flex gap-4">
+           <button id="btn-prev" class="flex-1 h-14 bg-[#0f172a] border-t-2 border-l-2 border-slate-600 border-b-4 border-r-4 border-black rounded shadow-[0_4px_0_#000] hover:bg-slate-800 active:translate-y-[4px] active:shadow-[0_0px_0_#000] active:border-b-2 active:border-r-2 flex items-center justify-center transition-all group cursor-pointer" title="上一隻">
+             <!-- 實心倒三角形 (向左) -->
+             <svg viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 text-cyan-400 group-hover:-translate-x-1 transition-transform drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
+               <polygon points="18,4 6,12 18,20" />
+             </svg>
+           </button>
+           <button id="btn-next" class="flex-1 h-14 bg-[#0f172a] border-t-2 border-l-2 border-slate-600 border-b-4 border-r-4 border-black rounded shadow-[0_4px_0_#000] hover:bg-slate-800 active:translate-y-[4px] active:shadow-[0_0px_0_#000] active:border-b-2 active:border-r-2 flex items-center justify-center transition-all group cursor-pointer" title="下一隻">
+             <!-- 實心正三角形 (向右) -->
+             <svg viewBox="0 0 24 24" fill="currentColor" class="w-8 h-8 text-cyan-400 group-hover:translate-x-1 transition-transform drop-shadow-[0_0_8px_rgba(34,211,238,0.8)]">
+               <polygon points="6,4 18,12 6,20" />
+             </svg>
+           </button>
+         </div>
+
+       </div>
     </div>
   </div>
 
   <!-- 資料庫核心同步工具 -->
-  <div class="mt-12 w-full max-w-lg bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-lg relative overflow-hidden">
+  <div class="w-full max-w-lg bg-slate-800 rounded-xl p-6 border border-slate-700 shadow-lg relative overflow-hidden mb-10">
     <div class="absolute top-0 left-0 w-full h-1 bg-emerald-500"></div>
-
     <div class="flex items-center justify-between mb-4">
       <h3 class="text-white font-bold flex items-center gap-2">
         <i data-lucide="refresh-cw" class="text-emerald-400 w-5 h-5"></i> 自動資料庫升級系統
@@ -308,7 +321,6 @@ service cloud.firestore {
       'default': '預設說明'
     };
 
-    // 新增：完整型態名稱與後綴對照表 (統一管理)
     const FORM_SUFFIXES = [
       { key: '-alola-cap', val: ' (阿羅拉帽子)' },
       { key: '-original-cap', val: ' (初始帽子)' },
@@ -340,7 +352,6 @@ service cloud.firestore {
       { key: '-bloodmoon', val: ' (赫月)' }
     ];
 
-    // 用於過濾地區型態登場版本的世代對照表
     const GAME_GENERATIONS = {
       'red': 1, 'blue': 1, 'yellow': 1,
       'gold': 2, 'silver': 2, 'crystal': 2,
@@ -387,9 +398,14 @@ service cloud.firestore {
       pokeTypes: document.getElementById('poke-types'),
       pokeHeight: document.getElementById('poke-height'),
       pokeWeight: document.getElementById('poke-weight'),
-      pokeGames: document.getElementById('poke-games'), 
       pokeFlavor: document.getElementById('poke-flavor'),
       flavorSelect: document.getElementById('flavor-version-select'),
+      
+      // 新增右側面板元素
+      encounterList: document.getElementById('encounter-list'),
+      encounterVersionLabel: document.getElementById('encounter-version-label'),
+      versionBtnGrid: document.getElementById('version-btn-grid'),
+      
       btnPrev: document.getElementById('btn-prev'),
       btnNext: document.getElementById('btn-next'),
       syncBtn: document.getElementById('sync-btn'),
@@ -418,8 +434,8 @@ service cloud.firestore {
     }
 
     function setIndicators(source) {
-      elements.indCloud.className = "w-4 h-4 rounded-full border-2 border-black/50 " + (source === 'cloud' ? 'bg-green-400 shadow-[0_0_10px_#4ade80]' : 'bg-red-400');
-      elements.indApi.className = "w-4 h-4 rounded-full border-2 border-black/50 " + (source === 'api' ? 'bg-yellow-400 shadow-[0_0_10px_#facc15]' : 'bg-yellow-600');
+      elements.indCloud.className = "w-4 h-4 rounded-full border-2 border-black/50 shadow-inner transition-colors " + (source === 'cloud' ? 'bg-green-400 shadow-[0_0_10px_#4ade80]' : 'bg-red-500');
+      elements.indApi.className = "w-4 h-4 rounded-full border-2 border-black/50 shadow-inner transition-colors " + (source === 'api' ? 'bg-yellow-400 shadow-[0_0_10px_#facc15]' : 'bg-yellow-600');
       
       elements.dataSourceLabel.innerHTML = source === 'cloud' 
         ? `<i data-lucide="cloud" class="w-3 h-3 text-green-500"></i> Firebase 讀取`
@@ -428,7 +444,6 @@ service cloud.firestore {
       lucide.createIcons();
     }
 
-    // 地區型態世代過濾器 (防止阿羅拉等新型態出現在初代)
     function filterGamesByForm(gamesArr, apiName) {
       let minGen = 1;
       const lowerName = apiName.toLowerCase();
@@ -461,11 +476,116 @@ service cloud.firestore {
       });
     }
 
+    // 動態讀取棲息地資料 (GraphQL)
+    async function loadEncounters(targetId) {
+      elements.encounterList.innerHTML = `<li class="text-slate-400 flex items-center justify-center h-full gap-2"><i data-lucide="loader-2" class="w-4 h-4 animate-spin"></i> 搜尋棲息地中...</li>`;
+      lucide.createIcons();
+      elements.versionBtnGrid.innerHTML = '';
+      elements.encounterVersionLabel.innerText = '讀取中...';
+
+      try {
+        const query = `
+          query {
+            pokemon_v2_pokemon(where: {id: {_eq: ${targetId}}}) {
+              pokemon_v2_encounters {
+                pokemon_v2_version { name }
+                pokemon_v2_locationarea {
+                  pokemon_v2_locationareanames {
+                    name
+                    pokemon_v2_language { name }
+                  }
+                }
+              }
+            }
+          }
+        `;
+        const res = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query })
+        });
+        const json = await res.json();
+        const encounters = json.data.pokemon_v2_pokemon[0]?.pokemon_v2_encounters || [];
+
+        const encounterMap = {};
+
+        encounters.forEach(enc => {
+          const vName = enc.pokemon_v2_version.name;
+          const areaNames = enc.pokemon_v2_locationarea.pokemon_v2_locationareanames;
+
+          const hant = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hant');
+          const tw = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-tw');
+          const hans = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'zh-hans');
+          const ja = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja');
+          const jahrkt = areaNames.find(n => n.pokemon_v2_language.name.toLowerCase() === 'ja-hrkt');
+
+          let locName = hant?.name || tw?.name || hans?.name;
+          if (!locName) {
+            if (ja || jahrkt) {
+               locName = "[日文] " + (ja?.name || jahrkt?.name);
+            } else {
+               locName = "未知區域";
+            }
+          }
+
+          if (!encounterMap[vName]) encounterMap[vName] = new Set();
+          encounterMap[vName].add(locName);
+        });
+
+        const versions = Object.keys(encounterMap);
+        if (versions.length === 0) {
+           elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex items-center h-full">此型態無野外遇見紀錄。<br>(可能為進化、孵蛋、配佈或 NPC 贈送)</li>`;
+           elements.encounterVersionLabel.innerText = '無版本可選';
+           return;
+        }
+
+        // 渲染藍色版本按鈕陣列
+        versions.forEach((v, index) => {
+          const btn = document.createElement('button');
+          // 修正：移除 truncate 單行截斷，改為 flex 置中與自動換行 (break-words) 以完整顯示文字
+          btn.className = "bg-[#0ea5e9] text-white text-[10px] font-bold py-1 px-1 rounded shadow-md border-b-4 border-[#0284c7] active:border-b-0 active:translate-y-[4px] hover:bg-[#38bdf8] transition-all w-full min-h-[36px] flex items-center justify-center text-center break-words leading-tight";
+          btn.innerText = VERSION_MAP[v] || v;
+          btn.onclick = () => {
+             // 重置其他按鈕狀態
+             Array.from(elements.versionBtnGrid.children).forEach(b => {
+                 b.classList.remove('ring-2', 'ring-white', 'bg-[#38bdf8]');
+                 b.classList.add('bg-[#0ea5e9]');
+             });
+             btn.classList.add('ring-2', 'ring-white', 'bg-[#38bdf8]');
+             btn.classList.remove('bg-[#0ea5e9]');
+             
+             elements.encounterVersionLabel.innerText = `【${VERSION_MAP[v] || v}】`;
+             const locs = Array.from(encounterMap[v]);
+             elements.encounterList.innerHTML = locs.map(l => `<li class="border-b border-slate-800 pb-1.5"><span class="mr-1">🔹</span>${l}</li>`).join('');
+
+             // 新增：同步切換左側的圖鑑說明
+             if (currentPokemonData && currentPokemonData.flavorTexts) {
+                 const matchIdx = currentPokemonData.flavorTexts.findIndex(f => f.version === v);
+                 if (matchIdx !== -1) {
+                     // 更新左側的下拉選單選項
+                     elements.flavorSelect.value = matchIdx;
+                     // 同步更新左側的說明文字
+                     elements.pokeFlavor.innerText = currentPokemonData.flavorTexts[matchIdx].text;
+                 }
+             }
+          };
+          elements.versionBtnGrid.appendChild(btn);
+
+          // 預設點擊第一個版本
+          if (index === 0) btn.click();
+        });
+
+      } catch (err) {
+        console.error("Encounter Fetch Error:", err);
+        elements.encounterList.innerHTML = `<li class="text-red-400 flex items-center justify-center h-full">無法載入棲息地資料</li>`;
+        elements.encounterVersionLabel.innerText = '連線失敗';
+      }
+    }
+
     function renderPokemon(data) {
       currentPokemonData = data;
       isShinyView = false;
       
-      // 確保顯示的編號始終為原始物種 ID (例如阿羅拉雷丘依然顯示 0026)
       elements.pokeId.innerText = `NO. ${String(data.speciesId || data.id).padStart(4, '0')}`;
       elements.pokeName.innerText = data.name;
       
@@ -499,18 +619,8 @@ service cloud.firestore {
       elements.pokeTypes.innerHTML = data.types.map(t => {
         const colorClass = TYPE_COLORS[t] || 'bg-slate-500';
         const typeName = TYPE_MAP[t] || t;
-        return `<span class="${colorClass} text-white px-6 py-1.5 rounded-xl text-sm font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
+        return `<span class="${colorClass} text-white px-4 py-1 rounded-xl text-xs font-black shadow-md border-b-4 border-black/20">${typeName}</span>`;
       }).join('');
-
-      // 渲染登場版本標籤
-      if (data.games && data.games.length > 0) {
-        elements.pokeGames.innerHTML = data.games.map(v => {
-          const vName = VERSION_MAP[v] || v;
-          return `<span class="bg-slate-300 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold shadow-sm border border-slate-400 whitespace-nowrap">${vName}</span>`;
-        }).join('');
-      } else {
-        elements.pokeGames.innerHTML = `<span class="text-slate-400 text-[10px] font-bold">暫無資料</span>`;
-      }
 
       if (data.flavorTexts && data.flavorTexts.length > 0) {
         elements.flavorSelect.innerHTML = data.flavorTexts.map((f, idx) => {
@@ -524,6 +634,9 @@ service cloud.firestore {
         elements.pokeFlavor.innerText = data.flavorText || "暫無介紹資料。";
         elements.flavorSelect.classList.add('hidden');
       }
+
+      // 非同步觸發抓取右側螢幕的棲息地資料
+      loadEncounters(data.id);
     }
 
     elements.btnShiny.addEventListener('click', () => {
@@ -591,7 +704,6 @@ service cloud.firestore {
          throw new Error("無法從官方取得繁體中文譯名，已拒絕寫入資料庫！");
       }
 
-      // 套用完整型態名稱後綴
       let finalName = parsedName;
       for (const suffix of FORM_SUFFIXES) {
          if (pkmnData.name.includes(suffix.key)) {
@@ -611,7 +723,6 @@ service cloud.firestore {
       const seenGames = new Set(); 
       let isFallback = false;
       
-      // 從遊戲索引與圖鑑說明中搜集全部登場版本 (無語言限制，確保黃版等皆收錄)
       if (pkmnData.game_indices) {
           pkmnData.game_indices.forEach(g => seenGames.add(g.version.name));
       }
@@ -619,15 +730,13 @@ service cloud.firestore {
           speciesData.flavor_text_entries.forEach(e => seenGames.add(e.version.name));
       }
 
-      // 手動補丁：針對特定熱門寶可夢強制加入最新世代，彌補 PokeAPI 的延遲
       let finalGamesArr = Array.from(seenGames);
-      if (speciesData.id === 25) { // Pikachu 補強
+      if (speciesData.id === 25) { 
           finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
       }
       
-      // 地區型態濾網：清除不合理的舊世代版本 (使用精確的 API 內部名稱)
       finalGamesArr = filterGamesByForm(finalGamesArr, pkmnData.name);
-      finalGamesArr = [...new Set(finalGamesArr)]; // 去除重複
+      finalGamesArr = [...new Set(finalGamesArr)];
 
       if (speciesData.flavor_text_entries) {
         let targetEntries = speciesData.flavor_text_entries.filter(e => ["zh-hant", "zh-tw", "zh-hans"].includes(e.language.name.toLowerCase()));
@@ -645,7 +754,6 @@ service cloud.firestore {
           isFallback = true;
         }
 
-        // 【核心修正】：過濾掉不屬於此地區型態的圖鑑說明文字！
         targetEntries = targetEntries.filter(e => finalGamesArr.includes(e.version.name));
         
         targetEntries.forEach(entry => {
@@ -709,7 +817,7 @@ service cloud.firestore {
           const isIncorrectLanguage = !hasChineseName && data.isFallback !== true;
 
           if (needsUpgrade || isIncorrectLanguage) {
-            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 需要補齊版本資料，強制淨化更新...`);
+            console.log(`[Auto-Heal] 偵測到 ID ${searchId} 需要補齊資料，強制淨化更新...`);
             const cleanData = await fetchAndParseFromPokeAPI(searchId);
             await setDoc(docRef, cleanData);
             renderPokemon(cleanData);
@@ -750,7 +858,6 @@ service cloud.firestore {
 
       try {
         let pokemonList = [];
-        // 分批次抓取 (每次 200 筆)，並在 Query 中新增 name 欄位供型態判斷
         for (let offset = 0; offset <= 1025; offset += 200) {
           elements.syncStatusText.innerText = `向官方伺服器打包資料 (第 ${offset} ~ ${Math.min(offset + 200, 1025)} 筆)...`;
           const query = `
@@ -846,7 +953,6 @@ service cloud.firestore {
                 isFallback = true;
             }
 
-            // 手動補丁：皮卡丘
             let finalGamesArr = Array.from(seenGames);
             if (speciesId === 25) {
                 finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
@@ -879,7 +985,6 @@ service cloud.firestore {
             continue;
           }
 
-          // 套用完整型態名稱後綴
           let finalName = parsedName;
           for (const suffix of FORM_SUFFIXES) {
              if (p.name.includes(suffix.key)) {
@@ -889,7 +994,6 @@ service cloud.firestore {
           }
           parsedName = finalName;
 
-          // 手動補丁：皮卡丘
           let finalGamesArr = Array.from(seenGames);
           if (speciesId === 25) {
               finalGamesArr.push('scarlet', 'violet', 'legends-z-a');
