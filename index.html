@@ -476,7 +476,7 @@
       });
     }
 
-    // 新增：棲息地資料解析共用函式 (一次性過濾並翻譯)
+    // 新增：棲息地資料解析共用函式 (升級：優先抓取翻譯較完整的大區域 Location 名稱)
     function parseEncounters(encountersArray) {
       const encounterMap = {};
       if (!encountersArray) return encounterMap;
@@ -485,25 +485,30 @@
         const vName = enc.pokemon_v2_version?.name;
         if (!vName) return;
 
+        // 提取 小區域(Area) 與 大區域(Location) 的名稱陣列
         const areaNames = enc.pokemon_v2_locationarea?.pokemon_v2_locationareanames || [];
-        // 新增 ?. 安全防護與英文備援
-        const hant = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-hant');
-        const tw = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-tw');
-        const hans = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-hans');
-        const ja = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'ja');
-        const jahrkt = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'ja-hrkt');
-        const en = areaNames.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'en');
+        const locNames = enc.pokemon_v2_locationarea?.pokemon_v2_location?.pokemon_v2_locationnames || [];
+        
+        // 語言過濾助手函式
+        const findName = (namesArr) => {
+           const hant = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-hant');
+           const tw = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-tw');
+           const hans = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'zh-hans');
+           const ja = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'ja');
+           const jahrkt = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'ja-hrkt');
+           const en = namesArr.find(n => n.pokemon_v2_language?.name?.toLowerCase() === 'en');
 
-        let locName = hant?.name || tw?.name || hans?.name;
-        if (!locName) {
-          if (ja || jahrkt) {
-             locName = "[日文] " + (ja?.name || jahrkt?.name);
-          } else if (en) {
-             locName = "[英文] " + en?.name;
-          } else {
-             locName = "未知區域";
-          }
-        }
+           if (hant?.name) return hant.name;
+           if (tw?.name) return tw.name;
+           if (hans?.name) return hans.name;
+           if (ja?.name) return "[日文] " + ja.name;
+           if (jahrkt?.name) return "[日文] " + jahrkt.name;
+           if (en?.name) return "[英文] " + en.name;
+           return null;
+        };
+
+        // 【核心修正】：優先使用擁有完整中文翻譯的大區域(Location)，若無才退回使用小區域或未知
+        let locName = findName(locNames) || findName(areaNames) || "未知區域";
 
         if (!encounterMap[vName]) encounterMap[vName] = new Set();
         encounterMap[vName].add(locName);
@@ -578,7 +583,12 @@
       const versions = Object.keys(encounterMap);
 
       if (versions.length === 0) {
-         elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex items-center h-full">此型態無野外遇見紀錄。<br>(可能為進化、孵蛋、配佈或 NPC 贈送)</li>`;
+         // 【核心修正】：判斷是否為進化型態，給予玩家更精確的提示
+         if (data.isEvolved) {
+             elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-2 px-2"><span class="text-yellow-600 font-black text-sm">【 這是進化型態寶可夢 】</span><span class="leading-relaxed text-xs">多數版本無法在野外直接遇見。<br>💡 請搜尋其「退化型態」來尋找棲息地，並透過等級提升或道具進化。</span></li>`;
+         } else {
+             elements.encounterList.innerHTML = `<li class="text-slate-500 text-center flex flex-col items-center justify-center h-full w-full gap-1 px-2"><span class="text-yellow-600 font-black">無野外遇見紀錄</span><span class="text-[10px]">可能為孵蛋、配佈、NPC 贈送或最新世代尚未建檔。</span></li>`;
+         }
          elements.encounterVersionLabel.innerText = '無版本可選';
       } else {
          versions.forEach((v, index) => {
@@ -666,7 +676,7 @@
       if (!speciesRes.ok) throw new Error("API_NOT_FOUND");
       const speciesData = await speciesRes.json();
 
-      // 追加：透過 GraphQL 同步取得棲息地資料 (加入 en 英文備援)
+      // 追加：透過 GraphQL 同步取得棲息地資料 (升級：加入 pokemon_v2_location 大區域名稱)
       const encounterRes = await fetch('https://beta.pokeapi.co/graphql/v1beta', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -679,6 +689,12 @@
                   pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
                     name
                     pokemon_v2_language { name }
+                  }
+                  pokemon_v2_location {
+                    pokemon_v2_locationnames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
+                      name
+                      pokemon_v2_language { name }
+                    }
                   }
                 }
               }
@@ -788,10 +804,11 @@
         shinySpriteUrl: parsedShinySprite,
         varieties: varieties, 
         games: finalGamesArr, 
-        encounters: parsedEncounters, // 新增：一併寫入 Firebase 供永久使用
+        encounters: parsedEncounters, 
         flavorText: flavorTexts[0]?.text || "暫無資料",
         flavorTexts: flavorTexts,
         isFallback: isFallback,
+        isEvolved: !!speciesData.evolves_from_species, // 新增：判斷是否為進化型態
         updatedAt: new Date().toISOString()
       };
     }
@@ -814,8 +831,8 @@
         if (docSnap.exists()) {
           const data = docSnap.data();
           
-          // 檢查是否缺乏 encounters 欄位 (強制升級檢查)
-          const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId || !data.games || !data.encounters;
+          // 檢查是否缺乏 encounters 或 isEvolved 欄位 (強制升級檢查)
+          const needsUpgrade = !data.varieties || data.varieties.length === 0 || !data.speciesId || !data.games || !data.encounters || !data.hasOwnProperty('isEvolved');
           const hasChineseName = /[\u4e00-\u9fa5]/.test(data.name);
           const isIncorrectLanguage = !hasChineseName && data.isFallback !== true;
 
@@ -879,6 +896,7 @@
                 }
                 pokemon_v2_pokemonspecy {
                   id
+                  evolves_from_species_id
                   pokemon_v2_pokemons { id }
                   pokemon_v2_pokemonspeciesnames {
                     name
@@ -896,6 +914,12 @@
                     pokemon_v2_locationareanames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
                       name
                       pokemon_v2_language { name }
+                    }
+                    pokemon_v2_location {
+                      pokemon_v2_locationnames(where: {pokemon_v2_language: {name: {_in: ["zh-Hant", "zh-tw", "zh-Hans", "ja", "ja-Hrkt", "en"]}}}) {
+                        name
+                        pokemon_v2_language { name }
+                      }
                     }
                   }
                 }
@@ -938,6 +962,7 @@
           const speciesId = specy?.id || p.id;
           const varieties = specy?.pokemon_v2_pokemons?.map(v => v.id) || [p.id];
           let isFallback = false;
+          let isEvolved = !!specy?.evolves_from_species_id; // 新增：擷取進化關聯
           
           if (specy) {
             const names = specy.pokemon_v2_pokemonspeciesnames || [];
@@ -1037,10 +1062,11 @@
             shinySpriteUrl: shinyUrl,
             varieties: varieties, 
             games: finalGamesArr, 
-            encounters: parsedEncounters, // 新增：存入 Firebase 供永久快速使用
+            encounters: parsedEncounters, 
             flavorText: flavorTexts[0]?.text || "暫無資料",
             flavorTexts: flavorTexts,
             isFallback: isFallback,
+            isEvolved: isEvolved, // 新增：存入 Firebase 供判斷使用
             updatedAt: new Date().toISOString()
           };
 
